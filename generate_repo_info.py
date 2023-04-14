@@ -20,9 +20,10 @@ with open("78.01_CrawlGitHubURLs.md", "r") as f:
 for i, github_url in enumerate(urls, start=2):
     # Get the API URL for the GitHub repository
     api_url = github_url.replace("https://github.com", "https://api.github.com/repos")
-    headers = {"Authorization": f"token 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"}
+    # set in CMD: `setx GITHUB_PAT "APITOKENHERE"`
+    github_pat = os.environ["GITHUB_PAT"]
+    headers = {"Authorization": f"token {github_pat}"}
     response = requests.get(api_url, headers=headers)
-    time.sleep(1)
     
     # Send an HTTP request to the GitHub API URL
     response = requests.get(api_url)
@@ -85,4 +86,4 @@ for i, github_url in enumerate(urls, start=2):
 
         print(f"Data has been added to the markdown table for {repo_name}.")
     else:
-        print("Error while fetching the GitHub page.")
+        print(f"Error while fetching the GitHub page: {github_url} (status code: {response.status_code})")

@@ -79,7 +79,7 @@ for i, github_url in enumerate(urls, start=2):
                 f.write("|------------|----------|-------|-------|--------------|----------------|\n")
 
             # Write the extracted data to the table
-            f.write(f"| {datetime.now().strftime('%Y-%m-%d')} | {stars} | {watching} | {contributors} | {forks} | {latest_release} |\n")
+            f.write(f"| {datetime.now().strftime('%Y-%m-%d')} | {watching} | {forks}  | {stars} |{contributors} | {latest_release} |\n")
 
         print(f"Data has been added to the markdown table for {repo_name}.")
     else:

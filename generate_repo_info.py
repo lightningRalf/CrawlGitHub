@@ -84,3 +84,4 @@ for i, github_url in enumerate(urls, start=2):
         print(f"Data has been added to the markdown table for {repo_name}.")
     else:
         print(f"Error while fetching the GitHub page: {github_url} (status code: {response.status_code})")
+        print(f"Error message: {response.json()}") # Print the error message

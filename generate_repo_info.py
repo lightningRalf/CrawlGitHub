@@ -25,9 +25,6 @@ for i, github_url in enumerate(urls, start=2):
     headers = {"Authorization": f"token {github_pat}"}
     response = requests.get(api_url, headers=headers)
     
-    # Send an HTTP request to the GitHub API URL
-    response = requests.get(api_url)
-
     if response.status_code == 200:
         repo_data = response.json()
 

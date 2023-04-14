@@ -19,11 +19,13 @@ with open("78.01_CrawlGitHubURLs.md", "r") as f:
 # Process each URL
 for i, github_url in enumerate(urls, start=2):
     # Get the API URL for the GitHub repository
+    time.sleep(1)
     api_url = github_url.replace("https://github.com", "https://api.github.com/repos")
     # set in CMD: `setx GITHUB_PAT "APITOKENHERE"`
     github_pat = os.environ["GITHUB_PAT"]
     headers = {"Authorization": f"token {github_pat}"}
     response = requests.get(api_url, headers=headers)
+    
     
     if response.status_code == 200:
         repo_data = response.json()

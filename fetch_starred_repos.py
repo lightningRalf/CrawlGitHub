@@ -5,13 +5,13 @@ import os
 working_directory = "C:\\Users\\mjpa\\Documents\\Obsidian\\70-79 Quellen\\78_GitHub"
 os.chdir(working_directory)
 
-# Replace these with your GitHub username and personal access token
-github_username = "lightningRalf"
-access_token = "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"
 
 # Define the GitHub API URL and headers
 api_url = f"https://api.github.com/users/{github_username}/starred"
-headers = {"Authorization": f"token {access_token}"}
+# set in CMD: `setx GITHUB_PAT "APITOKENHERE"`
+github_pat = os.environ["GITHUB_PAT"]
+headers = {"Authorization": f"token {github_pat}"}
+response = requests.get(api_url, headers=headers)
 
 # Fetch the starred repositories
 starred_repos = []

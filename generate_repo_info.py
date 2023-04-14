@@ -16,6 +16,8 @@ os.chdir(working_directory)
 with open("78.01_CrawlGitHubURLs.md", "r") as f:
     urls = [url.strip() for url in f.readlines() if url.strip()]
 
+print(f"URLs read from the file: {urls}")  # Add this print statement
+
 # Process each URL
 for i, github_url in enumerate(urls, start=2):
     print(f"Processing URL {i}: {github_url}")  # Add this print statement

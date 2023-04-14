@@ -18,6 +18,7 @@ with open("78.01_CrawlGitHubURLs.md", "r") as f:
 
 # Process each URL
 for i, github_url in enumerate(urls, start=2):
+    print(f"Processing URL {i}: {github_url}")  # Add this print statement
     # Get the API URL for the GitHub repository
     time.sleep(1)
     api_url = github_url.replace("https://github.com", "https://api.github.com/repos")

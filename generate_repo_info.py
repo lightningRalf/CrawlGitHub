@@ -4,6 +4,10 @@ import os
 import re
 import time
 
+def get_readme_url(github_url, default_branch):
+    readme_url = github_url.replace("github.com", "raw.githubusercontent.com") + f"/{default_branch}/README.md"
+    return readme_url
+
 # Set the working directory
 working_directory = "C:\\Users\\mjpa\\Documents\\Obsidian\\70-79 Quellen\\78_GitHub"
 os.chdir(working_directory)
@@ -38,7 +42,7 @@ for i, github_url in enumerate(urls, start=2):
         releases_url = repo_data["releases_url"].replace("{/id}", "")
 
         # Get the contributors count
-        contributors_response = requests.get(contributors_url)
+        contributors_response = requests.get(contributors_url, headers=headers)
         if contributors_response.status_code == 200:
             contributors_data = contributors_response.json()
             contributors = len(contributors_data)
@@ -46,7 +50,7 @@ for i, github_url in enumerate(urls, start=2):
             contributors = "Error"
 
         # Get the latest release
-        releases_response = requests.get(releases_url)
+        releases_response = requests.get(releases_url, headers=headers)
         if releases_response.status_code == 200:
             releases_data = releases_response.json()
             latest_release = releases_data[0]["tag_name"] if releases_data else "No release found"
@@ -68,6 +72,7 @@ for i, github_url in enumerate(urls, start=2):
                 f.write(f"## [{repo_description}]({github_url})\n")
                 
                 # Add the iframe with the README.md
+                readme_url = get_readme_url(github_url, default_branch)
                 f.write(f"\n## README\n\n")
                 f.write(f'<iframe width="100%" height="800" src="{github_url}" ></iframe>\n')
                 
@@ -77,7 +82,7 @@ for i, github_url in enumerate(urls, start=2):
                 f.write("|------------|----------|-------|-------|--------------|----------------|\n")
 
             # Write the extracted data to the table
-            f.write(f"| {datetime.now().strftime('%Y-%m-%d')} | {watching} | {forks}  | {stars} |{contributors} | {latest_release} |\n")
+            f.write(f"| {datetime.now().strftime('%Y-%m-%d')} | {watching} | {forks}  | {stars} | {contributors} | {latest_release} |\n")
 
         print(f"Data has been added to the markdown table for {repo_name}.")
     else:

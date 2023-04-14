@@ -4,10 +4,6 @@ import os
 import re
 import time
 
-def get_readme_url(github_url, default_branch):
-    readme_url = github_url.replace("github.com", "raw.githubusercontent.com") + f"/{default_branch}/README.md"
-    return readme_url
-
 # Set the working directory
 working_directory = "C:\\Users\\mjpa\\Documents\\Obsidian\\70-79 Quellen\\78_GitHub"
 os.chdir(working_directory)
@@ -16,11 +12,9 @@ os.chdir(working_directory)
 with open("78.01_CrawlGitHubURLs.md", "r") as f:
     urls = [url.strip() for url in f.readlines() if url.strip()]
 
-print(f"URLs read from the file: {urls}")  # Add this print statement
-
 # Process each URL
 for i, github_url in enumerate(urls, start=2):
-    print(f"Processing URL {i}: {github_url}")  # Add this print statement
+
     # Get the API URL for the GitHub repository
     time.sleep(1)
     api_url = github_url.replace("https://github.com", "https://api.github.com/repos")
@@ -74,12 +68,11 @@ for i, github_url in enumerate(urls, start=2):
                 f.write(f"## [{repo_description}]({github_url})\n")
                 
                 # Add the iframe with the README.md
-                readme_url = get_readme_url(github_url, default_branch)
-                f.write(f"\n## README\n")
-                f.write(f'<iframe width="100%" height="800" src="{readme_url}" ></iframe>\n')
+                f.write(f"\n## README\n\n")
+                f.write(f'<iframe width="100%" height="800" src="{github_url}" ></iframe>\n')
                 
                 # Write the table header
-                f.write(f"\n##Overview\n")
+                f.write(f"\n## Overview\n\n")
                 f.write("| Date       | Watchers | Forks | Stars | Contributors | Latest Release |\n")
                 f.write("|------------|----------|-------|-------|--------------|----------------|\n")
 

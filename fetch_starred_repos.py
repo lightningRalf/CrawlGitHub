@@ -7,7 +7,7 @@ os.chdir(working_directory)
 
 
 # Define the GitHub API URL and headers
-api_url = f"https://api.github.com/users/{github_username}/starred"
+api_url = f"https://api.github.com/users/lightningralf/starred"
 # set in CMD: `setx GITHUB_PAT "APITOKENHERE"`
 github_pat = os.environ["GITHUB_PAT"]
 headers = {"Authorization": f"token {github_pat}"}

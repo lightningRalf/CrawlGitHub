@@ -2,6 +2,7 @@ import requests
 from datetime import datetime
 import os
 import re
+import time
 
 def get_readme_url(github_url, default_branch):
     readme_url = github_url.replace("github.com", "raw.githubusercontent.com") + f"/{default_branch}/README.md"

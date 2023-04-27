@@ -58,11 +58,15 @@ for i, github_url in enumerate(urls, start=2):
             latest_release = "Error"
 
         # Find the existing markdown file with the repo name
-        existing_files = [file for file in os.listdir() if re.search(rf"78\.\d{{2}}_{repo_name}\.md", file)]
+        existing_files = [file for file in os.listdir() if re.search(rf"78\.\d{{2,3}}_{repo_name}\.md", file)]
+        
         if existing_files:
             markdown_file = existing_files[0]
         else:
-            markdown_file = f"78.{str(i).zfill(2)}_{repo_name}.md"
+            # Get the highest existing number and add 1
+            existing_numbers = [int(re.search(r"78\.(\d{2,3})_", file).group(1)) for file in os.listdir() if re.search(r"78\.\d{2,3}_", file)]
+            next_number = max(existing_numbers) + 1
+            markdown_file = f"78.{next_number:03}_{repo_name}.md"
 
         # Open the markdown file in append mode
         with open(markdown_file, "a", encoding="utf-8") as f:

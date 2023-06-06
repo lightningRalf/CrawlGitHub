@@ -1,0 +1,47 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/g3n3r3luser/Programming/CrawlGitHub/	//
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+api_url	fetch_starred_repos.py	/^api_url = f"https:\/\/api.github.com\/users\/lightningralf\/starred"$/;"	v
+api_url	generate_repo_info.py	/^    api_url = github_url.replace("https:\/\/github.com", "https:\/\/api.github.com\/repos")$/;"	v
+contributors	generate_repo_info.py	/^            contributors = len(contributors_data)$/;"	v
+contributors_data	generate_repo_info.py	/^            contributors_data = contributors_response.json()$/;"	v
+contributors_response	generate_repo_info.py	/^        contributors_response = requests.get(contributors_url, headers=headers)$/;"	v
+contributors_url	generate_repo_info.py	/^        contributors_url = repo_data["contributors_url"]$/;"	v
+default_branch	generate_repo_info.py	/^        default_branch = repo_data["default_branch"]$/;"	v
+existing_files	generate_repo_info.py	/^        existing_files = [file for file in os.listdir() if re.search(rf"78\\.\\d{{2,3}}_{repo_na/;"	v
+forks	generate_repo_info.py	/^        forks = repo_data["forks_count"]$/;"	v
+get_readme_url	generate_repo_info.py	/^def get_readme_url(github_url, default_branch):$/;"	f
+github_pat	fetch_starred_repos.py	/^github_pat = os.environ["GITHUB_PAT"]$/;"	v
+github_pat	generate_repo_info.py	/^    github_pat = os.environ["GITHUB_PAT"]$/;"	v
+headers	fetch_starred_repos.py	/^headers = {"Authorization": f"token {github_pat}"}$/;"	v
+headers	generate_repo_info.py	/^    headers = {"Authorization": f"token {github_pat}"}$/;"	v
+json_data	fetch_starred_repos.py	/^    json_data = response.json()$/;"	v
+latest_release	generate_repo_info.py	/^            latest_release = releases_data[0]["tag_name"] if releases_data else "No release foun/;"	v
+markdown_file	generate_repo_info.py	/^            markdown_file = existing_files[0]$/;"	v
+markdown_file	generate_repo_info.py	/^            markdown_file = f"78.{next_number:03}_{repo_name}.md"$/;"	v
+next_number	generate_repo_info.py	/^            next_number = max(existing_numbers) + 1$/;"	v
+page	fetch_starred_repos.py	/^page = 1$/;"	v
+readme_url	generate_repo_info.py	/^                readme_url = get_readme_url(github_url, default_branch)$/;"	v
+releases_data	generate_repo_info.py	/^            releases_data = releases_response.json()$/;"	v
+releases_response	generate_repo_info.py	/^        releases_response = requests.get(releases_url, headers=headers)$/;"	v
+releases_url	generate_repo_info.py	/^        releases_url = repo_data["releases_url"].replace("{\/id}", "")$/;"	v
+repo_data	generate_repo_info.py	/^        repo_data = response.json()$/;"	v
+repo_description	generate_repo_info.py	/^        repo_description = repo_data["description"] or "No description found"$/;"	v
+repo_name	generate_repo_info.py	/^        repo_name = repo_data["name"]$/;"	v
+response	fetch_starred_repos.py	/^    response = requests.get(api_url + f"?page={page}&per_page=100", headers=headers)$/;"	v
+response	fetch_starred_repos.py	/^response = requests.get(api_url, headers=headers)$/;"	v
+response	generate_repo_info.py	/^    response = requests.get(api_url, headers=headers)$/;"	v
+starred_repos	fetch_starred_repos.py	/^starred_repos = []$/;"	v
+stars	generate_repo_info.py	/^        stars = repo_data["stargazers_count"]$/;"	v
+urls	generate_repo_info.py	/^    urls = [url.strip() for url in f.readlines() if url.strip()]$/;"	v
+watching	generate_repo_info.py	/^        watching = repo_data["subscribers_count"]$/;"	v
+working_directory	fetch_starred_repos.py	/^working_directory = "C:\\\\Users\\\\mjpa\\\\Documents\\\\Obsidian\\\\70-79 Quellen\\\\78_GitHub"$/;"	v
+working_directory	generate_repo_info.py	/^working_directory = "C:\\\\Users\\\\mjpa\\\\Documents\\\\Obsidian\\\\70-79 Quellen\\\\78_GitHub"$/;"	v

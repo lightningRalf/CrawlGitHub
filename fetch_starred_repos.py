@@ -2,7 +2,7 @@ import requests
 import os
 
 # Set the working directory
-working_directory = "C:\\Users\\mjpa\\Documents\\Obsidian\\70-79 Quellen\\78_GitHub"
+working_directory = "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code"
 os.chdir(working_directory)
 
 
@@ -29,8 +29,8 @@ while True:
     page += 1
 
 # Save the repository URLs to the file
-with open("78.01_CrawlGitHubURLs.md", "w") as f:
+with open("23.03.01_CrawlGitHubURLs.md", "w") as f:
     for repo_url in starred_repos:
         f.write(repo_url + "\n")
 
-print("Starred repository URLs have been saved to the 78.01_CrawlGitHubURLs.md file.")
+print("Starred repository URLs have been saved to the 23.03.01_CrawlGitHubURLs.md file.")

@@ -2,25 +2,25 @@ import requests
 from datetime import datetime
 import os
 import re
-import time
+import backoff
 
+@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=5)
 def get_readme_url(github_url, default_branch):
     readme_url = github_url.replace("github.com", "raw.githubusercontent.com") + f"/{default_branch}/README.md"
     return readme_url
 
 # Set the working directory
-working_directory = "C:\\Users\\mjpa\\Documents\\Obsidian\\70-79 Quellen\\78_GitHub"
+working_directory = "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code"
 os.chdir(working_directory)
 
 # Read the URLs from the file
-with open("78.01_CrawlGitHubURLs.md", "r") as f:
+with open("23.03.01_CrawlGitHubURLs.md", "r") as f:
     urls = [url.strip() for url in f.readlines() if url.strip()]
 
 # Process each URL
 for i, github_url in enumerate(urls, start=2):
 
     # Get the API URL for the GitHub repository
-    time.sleep(1)
     api_url = github_url.replace("https://github.com", "https://api.github.com/repos")
     # set in CMD: `setx GITHUB_PAT "APITOKENHERE"`
     github_pat = os.environ["GITHUB_PAT"]
@@ -58,15 +58,15 @@ for i, github_url in enumerate(urls, start=2):
             latest_release = "Error"
 
         # Find the existing markdown file with the repo name
-        existing_files = [file for file in os.listdir() if re.search(rf"78\.\d{{2,3}}_{repo_name}\.md", file)]
+        existing_files = [file for file in os.listdir() if re.search(rf"23.03\.\d{{2,3}}_{repo_name}\.md", file)]
         
         if existing_files:
             markdown_file = existing_files[0]
         else:
             # Get the highest existing number and add 1
-            existing_numbers = [int(re.search(r"78\.(\d{2,3})_", file).group(1)) for file in os.listdir() if re.search(r"78\.\d{2,3}_", file)]
+            existing_numbers = [int(re.search(r"23.03\.(\d{2,3})_", file).group(1)) for file in os.listdir() if re.search(r"23.03\.\d{2,3}_", file)]
             next_number = max(existing_numbers) + 1
-            markdown_file = f"78.{next_number:03}_{repo_name}.md"
+            markdown_file = f"23.03.{next_number:03}_{repo_name}.md"
 
         # Open the markdown file in append mode
         with open(markdown_file, "a", encoding="utf-8") as f:

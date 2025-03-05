@@ -5,7 +5,7 @@ description = "Crawl GitHub for starred items"
 requires-python =">=3.11"
 dependencies = [
     "requests==2.31.0",
-    "backoff==2.2.1"
+    "stamina==24.3.0"
 ]
 
 [build-system]

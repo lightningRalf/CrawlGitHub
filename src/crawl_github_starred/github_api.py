@@ -34,8 +34,8 @@ def handle_rate_limit(response: requests.Response) -> None:
         time.sleep(wait_time)
 
 @stamina.retry(
-    on=lambda e: isinstance(e, requests.exceptions.RequestException)
-    or is_github_rate_limit(e),
+    on=lambda e: isinstance(e, requests.exceptions.RequestException) and 
+                (is_github_rate_limit(e) or not isinstance(e, requests.exceptions.HTTPError)),
     attempts=10,
     wait_initial=1.0,
     wait_max=60.0,
@@ -43,7 +43,7 @@ def handle_rate_limit(response: requests.Response) -> None:
 )
 def fetch_github_data(url: str, headers: dict, use_cache: bool = True) -> Optional[requests.Response]:
     """Fetches data from GitHub, handling rate limits, and conditional requests."""
-
+    
     if use_cache:
         cached_response = cache.get_cached_response(url)
         if cached_response:
@@ -52,31 +52,42 @@ def fetch_github_data(url: str, headers: dict, use_cache: bool = True) -> Option
             elif "ETag" in cached_response.headers:
                 headers["If-None-Match"] = cached_response.headers["ETag"]
 
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 403:
-        if "X-RateLimit-Remaining" in response.headers and "X-RateLimit-Reset" in response.headers:
-            handle_rate_limit(response)  # Wait, then retry (stamina will retry)
-            response.raise_for_status()  # Let stamina retry.
-        else:
-            logger.error(f"403 Forbidden (not rate limit): {url}")
-            response.raise_for_status()  # Don't retry other 403 errors
-
-    elif response.status_code == 304:  # Not Modified
-        logger.info(f"Content not modified (304): {url}")
-        if not cached_response:
-            raise ValueError("Received 304 but no cached response available.")
-        return cached_response
-
-    elif response.status_code != 200:
-        logger.error(f"Request failed: {url} - {response.status_code} - {response.text}")
-        response.raise_for_status()
-
-    # Cache successful and cacheable responses.
-    if use_cache:
-        cache.cache_response(response)
-
-    return response
+    try:
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 403:
+            if "X-RateLimit-Remaining" in response.headers and "X-RateLimit-Reset" in response.headers:
+                handle_rate_limit(response)
+                response.raise_for_status()  # Will be caught by stamina retry
+            else:
+                # Handle forbidden but not rate limit (e.g., private repo)
+                logger.warning(f"403 Forbidden (not rate limit) for {url}. Skipping.")
+                return None  # Return None instead of raising an exception
+                
+        elif response.status_code == 304:  # Not Modified
+            logger.info(f"Content not modified (304): {url}")
+            if not cached_response:
+                logger.warning("Received 304 but no cached response available.")
+                return None
+            return cached_response
+            
+        elif response.status_code != 200:
+            logger.error(f"Request failed: {url} - {response.status_code} - {response.text}")
+            response.raise_for_status()
+            
+        # Cache successful and cacheable responses
+        if use_cache:
+            cache.cache_response(response)
+            
+        return response
+        
+    except requests.exceptions.RequestException as e:
+        if not isinstance(e, requests.exceptions.HTTPError) or e.response.status_code != 403:
+            # Re-raise for stamina to retry if it's not a 403
+            raise
+        # For 403 errors, warn and return None
+        logger.warning(f"Access forbidden for {url}. Skipping.")
+        return None
 
 
 def fetch_starred_repos(api_url: str, headers: dict) -> list[str]:

@@ -12,12 +12,16 @@ logger = logging.getLogger(__name__)
 def generate_repo_info(urls: list[str]) -> None:
     """Generates repository information and saves/appends to markdown files."""
     headers = github_api.get_github_headers()
-
-    for i, github_url in enumerate(urls, start=2):
+    
+    logger.info(f"Processing {len(urls)} repositories")
+    
+    for i, github_url in enumerate(urls, start=2):  # Start from 1 for more natural indexing
+        logger.info(f"Processing repository {i}/{len(urls)}: {github_url}")
         api_url = github_url.replace("https://github.com", "https://api.github.com/repos")
         response = github_api.fetch_github_data(api_url, headers.copy())  # Fetch repo data
 
         if not response:
+            logger.warning(f"Failed to get data for {github_url}, skipping")
             continue
 
         repo_data = response.json()
@@ -66,6 +70,13 @@ def generate_repo_info(urls: list[str]) -> None:
 
         markdown_file_path = os.path.join(config.WORKING_DIRECTORY, markdown_file)
 
+        # Add check to see if the file path is writable
+        if not os.access(os.path.dirname(markdown_file_path), os.W_OK):
+            logger.error(f"No write permission for directory: {os.path.dirname(markdown_file_path)}")
+            continue
+            
+        logger.info(f"Writing to file: {markdown_file_path}")
+        
         # Open the markdown file in append mode
         with open(markdown_file_path, "a", encoding="utf-8") as f:
             if os.stat(markdown_file_path).st_size == 0:
@@ -85,4 +96,4 @@ def generate_repo_info(urls: list[str]) -> None:
             f.write(
                 f"| {datetime.datetime.now().strftime('%Y-%m-%d')} | {watching} | {forks}  | {stars} | {contributors} | {latest_release} |\n"
             )
-        logger.info(f"Data has been added to {markdown_file} for {repo_name}.")
+        logger.info(f"Data has been added to {markdown_file} for {repo_name} ({i}/{len(urls)})")

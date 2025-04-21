@@ -1,0 +1,279 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:8ed0467c-21b4-4fc2-a8ff-26c162f26e40",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-03-06T15:09:49+01:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "author": "anchore",
+          "name": "grype",
+          "version": "0.87.0"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:pypi/certifi@2025.1.31?package-id=83c281fc6c6901f8",
+      "type": "library",
+      "name": "certifi",
+      "version": "2025.1.31",
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        },
+        {
+          "license": {
+            "name": "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/certifi@2025.1.31",
+      "properties": [
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/charset-normalizer@3.4.1?package-id=ac1d5bb409a2dc43",
+      "type": "library",
+      "name": "charset-normalizer",
+      "version": "3.4.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/charset-normalizer@3.4.1",
+      "properties": [
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        }
+      ]
+    },
+    {
+      "bom-ref": "6f14337e30e6bb76",
+      "type": "library",
+      "name": "crawl-github-starred",
+      "version": "0.1.0",
+      "properties": [
+        {
+          "name": "syft:package:type",
+          "value": "UnknownPackage"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/idna@3.10?package-id=97cb604a3f8e088b",
+      "type": "library",
+      "name": "idna",
+      "version": "3.10",
+      "licenses": [
+        {
+          "license": {
+            "name": "License :: OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/idna@3.10",
+      "properties": [
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/requests@2.31.0?package-id=dbba6c3b631b3312",
+      "type": "library",
+      "name": "requests",
+      "version": "2.31.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "License :: OSI Approved :: Apache Software License"
+          }
+        },
+        {
+          "license": {
+            "name": "declared license of 'requests'"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/requests@2.31.0",
+      "properties": [
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/stamina@24.3.0?package-id=b1cf413d0b73c4a1",
+      "type": "library",
+      "name": "stamina",
+      "version": "24.3.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/stamina@24.3.0",
+      "properties": [
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/tenacity@9.0.0?package-id=0a5ae83115a70f34",
+      "type": "library",
+      "name": "tenacity",
+      "version": "9.0.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "License :: OSI Approved :: Apache Software License"
+          }
+        },
+        {
+          "license": {
+            "name": "declared license of 'tenacity'"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/tenacity@9.0.0",
+      "properties": [
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/urllib3@2.3.0?package-id=460725302be909ae",
+      "type": "library",
+      "name": "urllib3",
+      "version": "2.3.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/urllib3@2.3.0",
+      "properties": [
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "6f14337e30e6bb76",
+      "dependsOn": [
+        "pkg:pypi/requests@2.31.0?package-id=dbba6c3b631b3312",
+        "pkg:pypi/stamina@24.3.0?package-id=b1cf413d0b73c4a1"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/requests@2.31.0?package-id=dbba6c3b631b3312",
+      "dependsOn": [
+        "pkg:pypi/certifi@2025.1.31?package-id=83c281fc6c6901f8",
+        "pkg:pypi/charset-normalizer@3.4.1?package-id=ac1d5bb409a2dc43",
+        "pkg:pypi/idna@3.10?package-id=97cb604a3f8e088b",
+        "pkg:pypi/urllib3@2.3.0?package-id=460725302be909ae"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/stamina@24.3.0?package-id=b1cf413d0b73c4a1",
+      "dependsOn": [
+        "pkg:pypi/tenacity@9.0.0?package-id=0a5ae83115a70f34"
+      ]
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "bom-ref": "urn:uuid:a9e3aec2-9dc9-4a3a-a625-f5ee9532d3b5",
+      "id": "GHSA-9wx4-h78v-vm56",
+      "source": {
+        "name": "github-language-python",
+        "url": "https://github.com/advisories/GHSA-9wx4-h78v-vm56"
+      },
+      "references": [
+        {
+          "id": "GHSA-9wx4-h78v-vm56",
+          "source": {
+            "name": "github-language-python",
+            "url": "https://github.com/advisories/GHSA-9wx4-h78v-vm56"
+          }
+        }
+      ],
+      "ratings": [
+        {
+          "score": 5.6,
+          "severity": "medium",
+          "method": "CVSSv31",
+          "vector": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:H/I:H/A:N"
+        }
+      ],
+      "description": "Requests `Session` object does not verify requests after making first request with verify=False",
+      "advisories": [
+        {
+          "url": "https://github.com/advisories/GHSA-9wx4-h78v-vm56"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:pypi/requests@2.31.0?package-id=dbba6c3b631b3312"
+        }
+      ]
+    }
+  ]
+}

@@ -54,16 +54,16 @@ def generate_repo_info(urls: list[str]) -> None:
         existing_files = [
             file
             for file in os.listdir(config.WORKING_DIRECTORY)
-            if re.search(rf"23.03\.\d{{2,3}}_{repo_name}\.md", file)
+            if re.search(rf"23.03\.\d+_{repo_name}\.md", file)
         ]
 
         if existing_files:
             markdown_file = existing_files[0]
         else:
             existing_numbers = [
-                int(re.search(r"23.03\.(\d{2,3})_", file).group(1))
+                int(re.search(r"23.03\.(\d+)_", file).group(1))
                 for file in os.listdir(config.WORKING_DIRECTORY)
-                if re.search(r"23.03\.\d{2,3}_", file)
+                if re.search(r"23.03\.\d+_", file)
             ]
             next_number = max(existing_numbers, default=1) + 1
             markdown_file = f"23.03.{next_number:03}_{repo_name}.md"

@@ -108,6 +108,6 @@ def fetch_starred_repos(api_url: str, headers: dict) -> list[str]:
 def get_readme_url(github_url: str, default_branch: str) -> str:
     """Constructs the raw README URL."""
     return (
-        github_url.replace("github.com", "raw.githubusercontent.com")
-        + f"/{default_branch}/README.md"
+        github_url
+        + f"/blob/{default_branch}/README.md"
     )

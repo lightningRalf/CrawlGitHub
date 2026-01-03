@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 import sys
@@ -5,10 +6,30 @@ import sys
 from . import config
 from . import github_api
 from . import repo_info
+from . import starred_repos_file
 import stamina
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Fetch starred GitHub repos and update notes.")
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip repos that already have a table row for today.",
+    )
+    parser.add_argument(
+        "--max-repos",
+        type=int,
+        default=None,
+        help="Process at most N repositories (after resume-from).",
+    )
+    parser.add_argument(
+        "--resume-from",
+        type=int,
+        default=None,
+        help="Resume from this 23.03.xxx file number (e.g., 1450).",
+    )
+    args = parser.parse_args()
     """Main function to fetch starred repos and generate info."""
     # Configure logging to both file and console
     logging.basicConfig(
@@ -43,17 +64,34 @@ def main():
     logger.info(f"Found {len(starred_repos)} starred repositories")
 
     starred_repos_file_path = os.path.join(config.WORKING_DIRECTORY, config.STARRED_REPOS_FILE)
-    with open(starred_repos_file_path, "w") as f:
-        for repo_url in starred_repos:
-            f.write(repo_url + "\n")
+    description = (
+        "Tracks starred GitHub repository URLs for CrawlGitHub runs and logs repositories that became unmaintained."
+    )
+    starred_repos_file.write_starred_repos_file(
+        starred_repos_file_path,
+        starred_repos,
+        [],
+        description,
+    )
     logger.info(f"Starred repository URLs saved to {starred_repos_file_path}")
 
     # Generate repository information
-    with open(starred_repos_file_path, "r") as f:
-        urls = [url.strip() for url in f.readlines() if url.strip()]
+    with open(starred_repos_file_path, "r", encoding="utf-8") as f:
+        urls = starred_repos_file.extract_urls(f.read())
     
     logger.info(f"Starting to generate info for {len(urls)} repositories")
-    repo_info.generate_repo_info(urls)
+    newly_unmaintained = repo_info.generate_repo_info(
+        urls,
+        skip_existing=args.skip_existing,
+        max_repos=args.max_repos,
+        resume_from=args.resume_from,
+    )
+    starred_repos_file.write_starred_repos_file(
+        starred_repos_file_path,
+        starred_repos,
+        newly_unmaintained,
+        description,
+    )
     logger.info("Repository information generation completed")
 
 

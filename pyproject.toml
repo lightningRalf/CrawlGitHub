@@ -9,6 +9,9 @@ dependencies = [
     "structlog>=25.2.0",
 ]
 
+[project.scripts]
+crawl-github = "crawl_github_starred.main:main"
+
 [build-system]
-requires = ["uv==0.6.4"]
-build-backend = "uv"
+requires = ["uv_build>=0.8.4,<0.9.0"]
+build-backend = "uv_build"

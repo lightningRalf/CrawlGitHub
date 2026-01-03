@@ -92,17 +92,22 @@ def fetch_github_data(url: str, headers: dict, use_cache: bool = True) -> Option
 
 def fetch_starred_repos(api_url: str, headers: dict) -> list[str]:
     """Fetches starred repositories, handling pagination."""
-    starred_repos = []
+    return [repo["html_url"] for repo in _fetch_paginated(api_url, headers)]
+
+
+def _fetch_paginated(api_url: str, headers: dict) -> list[dict]:
+    items: list[dict] = []
     page = 1
     while True:
         paginated_url = f"{api_url}?page={page}&per_page=100"
-        response = fetch_github_data(paginated_url, headers.copy())  # Use a copy
+        response = fetch_github_data(paginated_url, headers.copy())
         if response is None or not response.json():
             break
-        starred_repos.extend([repo["html_url"] for repo in response.json()])
-        logger.info(f"Fetched page {page} with {len(response.json())} items.")
+        payload = response.json()
+        items.extend(payload)
+        logger.info(f"Fetched page {page} with {len(payload)} items.")
         page += 1
-    return starred_repos
+    return items
 
 
 def get_readme_url(github_url: str, default_branch: str) -> str:

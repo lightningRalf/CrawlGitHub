@@ -1,14 +1,19 @@
 # Crawl GitHub Starred Repositories
 
-Fetches starred repositories for a configured GitHub user (defaults to `lightningralf`), collects repo metadata, and generates per-repo Markdown files with embedded README content and historical tracking data.
+Fetches starred repositories for a configured GitHub user (defaults to `lightningralf`), collects metadata, and updates Obsidian notes in `23.03_Code`.
 
 ## Features
 
 - Repository discovery for starred repos
 - Metadata collection (stars, watchers, forks, contributors, latest release)
-- Per-repo Markdown notes with embedded README
-- Historical tracking across runs
-- Cached API responses in `.cache`
+- Per-repo Markdown notes with historical overview table
+- **Local README snapshot notes** in `23.03_READMEs/` (stable hashed filenames)
+- Structured frontmatter for search/Bases/LLM retrieval
+- Auto-generated Obsidian Bases files:
+  - `23.03.00_RepoIndex.base`
+  - `23.03.00_ReviewQueue.base`
+- Deduplicated `23.03.01_CrawlGitHubURLs.md` maintenance section
+- Cached API responses (ETag/Last-Modified) in `tools/cache`
 - Retry logic with `stamina`
 - Console + file logging (`github_fetch.log`)
 
@@ -26,37 +31,76 @@ uv sync
 
 ## Configuration
 
-1) Set your token:
+Set your token:
 
 ```powershell
 $env:GITHUB_PAT = "your_github_personal_access_token"
 ```
 
-2) Set the output directory in `src/crawl_github_starred/config.py` (search for `working_directory`).
+Optional environment variables:
+
+- `CRAWLGITHUB_WORKING_DIR` (default: Obsidian `23.03_Code` path)
+- `CRAWLGITHUB_CACHE_DIR`
+- `CRAWLGITHUB_REQUEST_DELAY_SECONDS` (default: `1.0`)
+- `CRAWLGITHUB_README_SYNC_MODE` (`off|new|if-pushed|always`, default: `new`)
+- `CRAWLGITHUB_MAX_README_UPDATES_PER_RUN` (default: `25`)
+- `CRAWLGITHUB_README_NOTES_SUBDIR` (default: `23.03_READMEs`)
 
 ## Usage
 
-Run the crawler from the project root:
+Run crawler:
 
 ```sh
 uv run crawl-github
 ```
 
-Or use the PowerShell wrapper (forwards args):
+PowerShell wrapper:
 
 ```powershell
 .\run_crawl_github.ps1
 ```
 
-Optional flags:
+### CLI flags
+
 - `--skip-existing`
 - `--resume-from 1450`
 - `--max-repos 25`
+- `--readme-sync-mode new`
+- `--max-readme-updates 20`
+- `--skip-bases`
 
-## Quick Test
+Example (safe incremental run):
 
 ```sh
-uv run crawl-github --resume-from 1450 --max-repos 10 --skip-existing
+uv run crawl-github --skip-existing --max-repos 50 --readme-sync-mode new --max-readme-updates 10
+```
+
+## Batch migration (no API)
+
+Use this to migrate existing note files in work packages (frontmatter + dedupe):
+
+```sh
+uv run python tools/migrate_repo_notes.py --start-number 1 --limit 150 --dry-run
+uv run python tools/migrate_repo_notes.py --start-number 1 --limit 150 --create-readme-placeholders
+```
+
+Optional report output:
+
+```sh
+uv run python tools/migrate_repo_notes.py --start-number 151 --limit 150 --report docs/migration/batch-02.json
+```
+
+Also dedupe `23.03.01_CrawlGitHubURLs.md`:
+
+```sh
+uv run python tools/migrate_repo_notes.py --start-number 1 --limit 150 --dedupe-starred-file
+```
+
+PowerShell batch helper:
+
+```powershell
+.\tools\run_migration_batch.ps1 -Batch 1 -DryRun
+.\tools\run_migration_batch.ps1 -Batch 1 -CreateReadmePlaceholders -DedupeStarredFile
 ```
 
 ## Testing
@@ -73,18 +117,17 @@ CrawlGitHub/
 src/
   crawl_github_starred/
     __init__.py
+    bases_files.py
     cache.py
     config.py
     github_api.py
     main.py
     repo_info.py
     starred_repos_file.py
+tools/
+  migrate_repo_notes.py
 tests/
   test_logging.py
   test_stamina_logging.py
-docs/
-  sunshine_output/
-pyproject.toml
-uv.lock
 README.md
 ```

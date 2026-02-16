@@ -4,6 +4,7 @@ import os
 import sys
 
 from . import config
+from . import bases_files
 from . import github_api
 from . import repo_info
 from . import starred_repos_file
@@ -29,8 +30,26 @@ def main():
         default=None,
         help="Resume from this 23.03.xxx file number (e.g., 1450).",
     )
+    parser.add_argument(
+        "--readme-sync-mode",
+        type=str,
+        choices=sorted(config.README_SYNC_MODES),
+        default=config.README_SYNC_MODE,
+        help="README sync mode: off, new, if-pushed, always.",
+    )
+    parser.add_argument(
+        "--max-readme-updates",
+        type=int,
+        default=config.MAX_README_UPDATES_PER_RUN,
+        help="Maximum README snapshot updates per run.",
+    )
+    parser.add_argument(
+        "--skip-bases",
+        action="store_true",
+        help="Do not regenerate Obsidian .base files.",
+    )
     args = parser.parse_args()
-    """Main function to fetch starred repos and generate info."""
+
     # Configure logging to both file and console
     logging.basicConfig(
         level=logging.INFO,
@@ -85,6 +104,8 @@ def main():
         skip_existing=args.skip_existing,
         max_repos=args.max_repos,
         resume_from=args.resume_from,
+        readme_sync_mode=args.readme_sync_mode,
+        max_readme_updates=args.max_readme_updates,
     )
     starred_repos_file.write_starred_repos_file(
         starred_repos_file_path,
@@ -92,6 +113,12 @@ def main():
         newly_unmaintained,
         description,
     )
+
+    if not args.skip_bases:
+        repo_index_path, review_queue_path = bases_files.write_base_files()
+        logger.info(f"Wrote base file: {repo_index_path}")
+        logger.info(f"Wrote base file: {review_queue_path}")
+
     logger.info("Repository information generation completed")
 
 

@@ -1,4 +1,6 @@
 import argparse
+import datetime
+import json
 import logging
 import os
 import sys
@@ -10,6 +12,43 @@ from . import repo_info
 from . import starred_repos_file
 from . import watchlist_exports
 import stamina
+
+
+def _resolve_watch_telemetry_path() -> str:
+    configured = str(config.WATCH_TELEMETRY_FILE or "").strip()
+    if not configured:
+        return ""
+
+    if os.path.isabs(configured):
+        return configured
+
+    return os.path.join(config.WORKING_DIRECTORY, configured)
+
+
+def _write_watch_telemetry(event_type: str, stats: dict[str, object]) -> str | None:
+    path = _resolve_watch_telemetry_path()
+    if not path:
+        return None
+
+    payload = {
+        "written_at": datetime.datetime.now(datetime.timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z"),
+        "event": event_type,
+        "working_directory": config.WORKING_DIRECTORY,
+        "stats": stats,
+    }
+
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\n")
+
+    return path
 
 
 def main():
@@ -141,6 +180,10 @@ def main():
         if args.export_npm_seeds:
             logger.info("Wrote npm watch seed export: %s", args.export_npm_seeds)
 
+        telemetry_path = _write_watch_telemetry("watch-seed-export", export_stats)
+        if telemetry_path:
+            logger.info("Wrote watch telemetry: %s", telemetry_path)
+
     def run_watch_candidate_sync() -> None:
         sync_stats = watchlist_exports.sync_watch_candidates_to_notes(
             max_npm_lookups=max(0, args.max_npm_lookups),
@@ -165,6 +208,10 @@ def main():
             sync_stats.get("npm_confidence_counts"),
             sync_stats.get("signal_source_counts"),
         )
+
+        telemetry_path = _write_watch_telemetry("watch-candidate-sync", sync_stats)
+        if telemetry_path:
+            logger.info("Wrote watch telemetry: %s", telemetry_path)
 
         if not args.skip_bases:
             watch_base_path = bases_files.write_watch_candidates_base()

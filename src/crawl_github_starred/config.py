@@ -23,6 +23,7 @@ class Config:
     review_queue_base_file: str
     watch_candidates_base_file: str
     watch_candidates_subdir: str
+    watch_telemetry_file: str
 
     @staticmethod
     def from_env() -> "Config":
@@ -94,6 +95,10 @@ class Config:
                 "CRAWLGITHUB_WATCH_CANDIDATES_SUBDIR",
                 "23.03_WatchCandidates",
             ),
+            watch_telemetry_file=os.environ.get(
+                "CRAWLGITHUB_WATCH_TELEMETRY_FILE",
+                "",
+            ).strip(),
         )
 
 
@@ -115,5 +120,6 @@ REPO_INDEX_BASE_FILE = CONFIG.repo_index_base_file
 REVIEW_QUEUE_BASE_FILE = CONFIG.review_queue_base_file
 WATCH_CANDIDATES_BASE_FILE = CONFIG.watch_candidates_base_file
 WATCH_CANDIDATES_SUBDIR = CONFIG.watch_candidates_subdir
+WATCH_TELEMETRY_FILE = CONFIG.watch_telemetry_file
 
 os.makedirs(CACHE_DIR, exist_ok=True)

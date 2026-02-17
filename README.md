@@ -178,10 +178,13 @@ src/
     main.py
     repo_info.py
     starred_repos_file.py
-    watchlist_exports.py
     watch/
       __init__.py
+      candidates.py
+      export.py
+      io.py
       models.py
+      npm.py
       signals.py
       sync.py
 tools/

@@ -17,23 +17,24 @@ Continue improving `C:\Users\mjpa\ProgrammierProjekte\CrawlGitHub` for Obsidian-
   - conservative repo anchors,
   - explainability metadata (`signalReasons`, `signalSources`, `signalCount`, `confidence`).
 - Tests now include watch lifecycle, heuristics, contract checks, and local-only end-to-end sync/prune/base workflow.
-- Watch module decomposition progressed:
-  - new package `src/crawl_github_starred/watch/`
-  - signal/classifier/scoring helpers extracted to `watch/signals.py`
-  - sync/prune pipeline extracted to `watch/sync.py`
-  - `watchlist_exports.py` keeps compatibility imports/shims.
-- Typed candidate model migration progressed:
-  - `src/crawl_github_starred/watch/models.py`
-  - candidate creation/merge/collection internals now run typed-first with dict compatibility at boundaries
-  - typed signal/metadata helper layer introduced (`candidate_reason_fragments`, `refresh_watch_candidate_signal_metadata`)
-  - sync note-writing internals now consume typed signal/metadata helpers
-  - npm enrichment mutation paths operate on typed `WatchCandidate` models
-  - parity-focused tests in `tests/test_watch_models.py` and typed sync/merge/enrichment/collection-path checks.
+- Watch module decomposition advanced to focused modules:
+  - `src/crawl_github_starred/watch/signals.py` for classifier/scoring helpers
+  - `src/crawl_github_starred/watch/io.py` for frontmatter/file helpers
+  - `src/crawl_github_starred/watch/npm.py` for npm parsing + enrichment
+  - `src/crawl_github_starred/watch/candidates.py` for typed candidate build/merge/collection
+  - `src/crawl_github_starred/watch/export.py` as thin local seed export orchestration
+  - `src/crawl_github_starred/watch/sync.py` for note sync/prune pipeline
+  - legacy `watchlist_exports.py` compatibility shim removed.
+- Typed candidate model migration advanced:
+  - `src/crawl_github_starred/watch/models.py` now provides typed signal/confidence/count helpers
+  - merge and stats callsites in sync/export flows now operate typed-first
+  - JSONL/frontmatter parity preserved at boundaries via `to_dict` coercion
+  - parity-focused tests extended in `tests/test_watch_models.py`, `tests/test_watchlist_heuristics.py`, `tests/test_watchlist_sync.py`, and `tests/test_watchlist_contracts.py`.
 - Incremental CLI subcommand shape introduced (compatibility-safe):
   - explicit subparsers: `crawl`, `watch sync`, `watch export`
   - legacy flag-only invocation remains supported by defaulting to `crawl`.
 - Optional watch telemetry JSON artifact is available via `CRAWLGITHUB_WATCH_TELEMETRY_FILE`.
-- Current test gate: `57 passed`.
+- Current test gate: `66 passed`.
 
 ## Current priorities (architecture)
 
@@ -49,9 +50,9 @@ Continue improving `C:\Users\mjpa\ProgrammierProjekte\CrawlGitHub` for Obsidian-
    - Refine subparser UX/help and keep command behavior explicit.
    - Preserve legacy flags and behavior compatibility.
 
-4. **Module decomposition follow-through**
-   - Keep `watchlist_exports.py` as compatibility surface while moving internals into `watch/` modules.
-   - Preserve behavior; no API expansion.
+4. **Post-shim cleanup + API clarity**
+   - Keep `watch/io.py`, `watch/npm.py`, `watch/candidates.py`, `watch/export.py`, and `watch/sync.py` boundaries explicit.
+   - Remove lingering transitional naming (`*_model`) where safe, without behavior expansion.
 
 ## Constraints
 

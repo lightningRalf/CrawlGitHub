@@ -17,7 +17,7 @@
 |---|---|---:|---:|---:|---|
 | 1 | Add explicit watch candidate/frontmatter contract tests and field invariants | 5 | 5 | 2 | Q1 |
 | 2 | Add local-only integration tests for classify→sync→prune workflow | 5 | 4 | 3 | Q1 |
-| 3 | Split `watchlist_exports.py` into focused modules (classifier/scoring/sync/export) | 5 | 4 | 4 | Q1 |
+| 3 | Split watch pipeline into focused modules (`watch/signals.py`, `watch/io.py`, `watch/npm.py`, `watch/candidates.py`, `watch/export.py`, `watch/sync.py`) | 5 | 4 | 4 | Q1 |
 | 4 | Persist watch sync/export summary as JSON artifact (machine-readable telemetry) | 4 | 3 | 2 | Q2 |
 | 5 | Introduce typed candidate models (dataclass/pydantic) with schema versioning | 5 | 3 | 4 | Q2 |
 | 6 | Introduce incremental CLI subcommands (`watch sync`, `watch export`) | 4 | 3 | 4 | Q2 |
@@ -53,8 +53,11 @@
 - **Leaf actions:**
   1. Create package dir: `src/crawl_github_starred/watch/`.
   2. Extract classifier/scoring helpers to `watch/signals.py`.
-  3. Extract sync/prune functions to `watch/sync.py`.
-  4. Keep compatibility shim in `watchlist_exports.py` during transition.
+  3. Extract frontmatter/file helpers to `watch/io.py`.
+  4. Extract npm package parsing/enrichment to `watch/npm.py`.
+  5. Extract typed candidate build/merge/collection to `watch/candidates.py`.
+  6. Keep `watch/export.py` as thin export orchestration and `watch/sync.py` as sync/prune orchestration.
+  7. Remove compatibility shim after migrations.
 - **Validation:**
   - `uv run python -m compileall src tools tests`
   - `uv run python -m pytest -q`
@@ -102,8 +105,12 @@
 - ✅ T3 module split completed:
   - created `src/crawl_github_starred/watch/`
   - extracted signal/classifier/scoring helpers to `src/crawl_github_starred/watch/signals.py`
-  - extracted sync/prune pipeline to `src/crawl_github_starred/watch/sync.py`
-  - kept compatibility shim imports in `watchlist_exports.py`
+  - extracted frontmatter/file helpers to `src/crawl_github_starred/watch/io.py`
+  - extracted npm package parsing/enrichment to `src/crawl_github_starred/watch/npm.py`
+  - extracted typed candidate build/merge/collection to `src/crawl_github_starred/watch/candidates.py`
+  - reduced `src/crawl_github_starred/watch/export.py` to thin export orchestration
+  - kept `src/crawl_github_starred/watch/sync.py` as sync/prune orchestration
+  - removed legacy `watchlist_exports.py` compatibility shim
 - ✅ T4 telemetry artifact output implemented:
   - config/env: `CRAWLGITHUB_WATCH_TELEMETRY_FILE`
   - writes JSON summaries for watch sync/export runs

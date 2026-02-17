@@ -1,8 +1,15 @@
 from crawl_github_starred.watch.models import WatchCandidate
 from crawl_github_starred.watch.models import as_watch_candidate
+from crawl_github_starred.watch.models import candidate_confidence
 from crawl_github_starred.watch.models import candidate_reason_fragments
+from crawl_github_starred.watch.models import candidate_signal_sources
 from crawl_github_starred.watch.models import coerce_watch_candidate_dict
 from crawl_github_starred.watch.models import refresh_watch_candidate_signal_metadata
+from crawl_github_starred.watch.models import watch_candidate_confidence_counts
+from crawl_github_starred.watch.models import watch_candidate_signal_source_counts
+from crawl_github_starred.watch.signals import _candidate_signal_sources
+from crawl_github_starred.watch.signals import _confidence_counts
+from crawl_github_starred.watch.signals import _signal_source_counts
 
 
 def test_repo_watch_candidate_model_roundtrip_preserves_contract_payload() -> None:
@@ -139,3 +146,76 @@ def test_refresh_watch_candidate_signal_metadata_populates_fields() -> None:
     assert candidate.signal_sources == ["topic", "signal"]
     assert candidate.signal_count == 2
     assert candidate.confidence in {"medium", "high"}
+
+
+def test_candidate_signal_helpers_accept_typed_and_dict_payloads() -> None:
+    typed_candidate = WatchCandidate.from_dict(
+        {
+            "id": "github:acme/rocket",
+            "type": "repo",
+            "source": "github-starred",
+            "title": "acme/rocket",
+            "tags": ["pi/extension", "source/github-starred"],
+            "signalReasons": ["topic:pi-extension", "signal:pi-extension"],
+        }
+    )
+    dict_candidate = {
+        "id": "npm:@badlogic/pi",
+        "type": "npm",
+        "source": "npm",
+        "title": "@badlogic/pi",
+        "tags": ["pi/extension", "source/npm"],
+        "signalReasons": ["derived-from:acme/rocket", "npm-keyword:pi-extension"],
+    }
+
+    assert candidate_signal_sources(typed_candidate) == ["topic", "signal"]
+    assert candidate_signal_sources(dict_candidate) == ["derived", "npm-keyword"]
+    assert candidate_confidence(typed_candidate) in {"medium", "high"}
+    assert candidate_confidence(dict_candidate) in {"medium", "high"}
+
+
+def test_candidate_signal_sources_keeps_legacy_ordering_and_normalization() -> None:
+    payload = {
+        "id": "github:acme/rocket",
+        "type": "repo",
+        "source": "github-starred",
+        "title": "acme/rocket",
+        "signalReasons": ["topic:pi-extension", "readme-path:extensions/*.{ts,js}"],
+        "signalSources": ["PATH", "topic", "custom"],
+    }
+
+    candidate = WatchCandidate.from_dict(payload)
+
+    expected = _candidate_signal_sources(candidate.to_dict(), candidate.signal_reasons)
+    assert candidate_signal_sources(candidate, candidate.signal_reasons) == expected
+
+
+def test_typed_count_helpers_match_dict_contract_helpers() -> None:
+    mixed_candidates: list[WatchCandidate | dict[str, object]] = [
+        WatchCandidate.from_dict(
+            {
+                "id": "github:acme/rocket",
+                "type": "repo",
+                "source": "github-starred",
+                "title": "acme/rocket",
+                "tags": ["pi/extension", "source/github-starred"],
+                "signalReasons": ["topic:pi-extension"],
+            }
+        ),
+        {
+            "id": "npm:@badlogic/pi",
+            "type": "npm",
+            "source": "npm",
+            "title": "@badlogic/pi",
+            "tags": ["pi/extension", "source/npm"],
+            "signalReasons": ["derived-from:acme/rocket", "npm-keyword:pi-extension"],
+        },
+    ]
+
+    dict_payloads = [
+        candidate.to_dict() if isinstance(candidate, WatchCandidate) else dict(candidate)
+        for candidate in mixed_candidates
+    ]
+
+    assert watch_candidate_confidence_counts(mixed_candidates) == _confidence_counts(dict_payloads)
+    assert watch_candidate_signal_source_counts(mixed_candidates) == _signal_source_counts(dict_payloads)

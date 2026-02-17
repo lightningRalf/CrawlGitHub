@@ -7,14 +7,14 @@ import re
 from typing import Any
 
 from .. import config
+from . import candidates as watch_candidates
+from . import io as watch_io
 from .models import WatchCandidate
 from .models import as_watch_candidate
 from .models import candidate_reason_fragments
 from .models import refresh_watch_candidate_signal_metadata
-from .signals import (
-    _confidence_counts,
-    _signal_source_counts,
-)
+from .models import watch_candidate_confidence_counts
+from .models import watch_candidate_signal_source_counts
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +42,6 @@ WATCH_NOTE_FRONTMATTER_ORDER = [
     "from_repos",
     "from_repo_ids",
 ]
-
-
-def _exports_module() -> Any:
-    from .. import watchlist_exports
-
-    return watchlist_exports
 
 
 def _sanitize_filename(value: str) -> str:
@@ -106,8 +100,6 @@ def _upsert_repo_candidate_note(
     candidate: WatchCandidate | dict[str, Any],
     now_iso: str,
 ) -> tuple[bool, bool, bool]:
-    exports = _exports_module()
-
     candidate_model = refresh_watch_candidate_signal_metadata(as_watch_candidate(candidate))
 
     note_path = _repo_note_path_from_candidate(candidate_model)
@@ -119,12 +111,12 @@ def _upsert_repo_candidate_note(
         return False, True, False
 
     try:
-        content = exports._read_text(note_path)
+        content = watch_io._read_text(note_path)
     except OSError:
         logger.warning("Failed to read repo candidate note: %s", note_path)
         return False, True, False
 
-    frontmatter, body = exports._parse_frontmatter(content)
+    frontmatter, body = watch_io._parse_frontmatter(content)
     updated = dict(frontmatter)
 
     signal_reasons = candidate_reason_fragments(candidate_model)
@@ -160,8 +152,8 @@ def _upsert_repo_candidate_note(
     if not str(updated.get("watch_owner") or "").strip():
         updated["watch_owner"] = candidate_model.owner or "you"
 
-    rewritten = exports._render_frontmatter(updated) + body.lstrip("\n")
-    changed = exports._write_text_if_changed(note_path, rewritten)
+    rewritten = watch_io._render_frontmatter(updated) + body.lstrip("\n")
+    changed = watch_io._write_text_if_changed(note_path, rewritten)
     return changed, False, was_archived and changed
 
 
@@ -199,8 +191,6 @@ def _upsert_npm_candidate_note(
     candidate: WatchCandidate | dict[str, Any],
     now_iso: str,
 ) -> tuple[bool, bool, bool]:
-    exports = _exports_module()
-
     candidate_model = refresh_watch_candidate_signal_metadata(as_watch_candidate(candidate))
 
     relative_path = _npm_candidate_relative_path(candidate_model)
@@ -210,12 +200,12 @@ def _upsert_npm_candidate_note(
     existing_content = ""
     if existed_before:
         try:
-            existing_content = exports._read_text(absolute_path)
+            existing_content = watch_io._read_text(absolute_path)
         except OSError:
             logger.warning("Failed to read npm candidate note: %s", absolute_path)
             existing_content = ""
 
-    frontmatter, body = exports._parse_frontmatter(existing_content) if existing_content else ({}, "")
+    frontmatter, body = watch_io._parse_frontmatter(existing_content) if existing_content else ({}, "")
     updated = dict(frontmatter)
 
     title = candidate_model.title or candidate_model.package or "npm-candidate"
@@ -273,8 +263,8 @@ def _upsert_npm_candidate_note(
     note_stem = os.path.splitext(os.path.basename(relative_path))[0]
     effective_body = body if body.strip() else _default_npm_candidate_body(candidate_model, note_stem)
 
-    rewritten = exports._render_frontmatter(updated, WATCH_NOTE_FRONTMATTER_ORDER) + effective_body.lstrip("\n")
-    changed = exports._write_text_if_changed(absolute_path, rewritten)
+    rewritten = watch_io._render_frontmatter(updated, WATCH_NOTE_FRONTMATTER_ORDER) + effective_body.lstrip("\n")
+    changed = watch_io._write_text_if_changed(absolute_path, rewritten)
 
     created = changed and not existed_before
     updated_existing = changed and existed_before
@@ -289,8 +279,6 @@ def _archive_watch_candidate_note(
     now_iso: str,
     key_order: list[str] | None = None,
 ) -> bool:
-    exports = _exports_module()
-
     if str(frontmatter.get("watch_status") or "").strip().lower() == "archived":
         return False
 
@@ -299,29 +287,27 @@ def _archive_watch_candidate_note(
     updated["watch_updated_at"] = now_iso
     updated["watch_archived_at"] = now_iso
 
-    rewritten = exports._render_frontmatter(updated, key_order=key_order) + body.lstrip("\n")
-    return exports._write_text_if_changed(note_path, rewritten)
+    rewritten = watch_io._render_frontmatter(updated, key_order=key_order) + body.lstrip("\n")
+    return watch_io._write_text_if_changed(note_path, rewritten)
 
 
 def _archive_missing_watch_candidates(active_seed_ids: set[str], now_iso: str) -> dict[str, int]:
-    exports = _exports_module()
-
     repo_notes_archived = 0
     npm_notes_archived = 0
 
-    for note_path in exports._iter_repo_note_paths():
+    for note_path in watch_io._iter_repo_note_paths():
         try:
-            content = exports._read_text(note_path)
+            content = watch_io._read_text(note_path)
         except OSError:
             logger.warning("Failed to read repo note for watch pruning: %s", note_path)
             continue
 
-        frontmatter, body = exports._parse_frontmatter(content)
+        frontmatter, body = watch_io._parse_frontmatter(content)
 
-        if not exports._is_truthy(frontmatter.get("watch_candidate")):
+        if not watch_io._is_truthy(frontmatter.get("watch_candidate")):
             continue
 
-        watch_seed_id = exports._normalize_watch_seed_id(frontmatter.get("watch_seed_id"))
+        watch_seed_id = watch_io._normalize_watch_seed_id(frontmatter.get("watch_seed_id"))
         if not watch_seed_id:
             continue
 
@@ -339,17 +325,17 @@ def _archive_missing_watch_candidates(active_seed_ids: set[str], now_iso: str) -
 
     for note_path in _iter_watch_candidate_npm_note_paths():
         try:
-            content = exports._read_text(note_path)
+            content = watch_io._read_text(note_path)
         except OSError:
             logger.warning("Failed to read npm candidate note for watch pruning: %s", note_path)
             continue
 
-        frontmatter, body = exports._parse_frontmatter(content)
+        frontmatter, body = watch_io._parse_frontmatter(content)
 
-        if not exports._is_truthy(frontmatter.get("watch_candidate")):
+        if not watch_io._is_truthy(frontmatter.get("watch_candidate")):
             continue
 
-        watch_seed_id = exports._normalize_watch_seed_id(frontmatter.get("watch_seed_id"))
+        watch_seed_id = watch_io._normalize_watch_seed_id(frontmatter.get("watch_seed_id"))
         if not watch_seed_id:
             continue
 
@@ -387,9 +373,7 @@ def sync_watch_candidates_to_notes(
     - npm candidates are synced into dedicated notes under ``WATCH_CANDIDATES_SUBDIR``.
     - Optional pruning archives stale watch candidates (`watch_status: archived`).
     """
-    exports = _exports_module()
-
-    collected = exports._collect_watch_seed_candidates(max_npm_lookups=max_npm_lookups)
+    collected = watch_candidates._collect_watch_seed_candidates(max_npm_lookups=max_npm_lookups)
 
     repo_candidates: list[WatchCandidate] = []
     for candidate in collected.get("repo_candidates", []):
@@ -401,7 +385,7 @@ def sync_watch_candidates_to_notes(
         if isinstance(candidate, (dict, WatchCandidate)):
             npm_candidates.append(as_watch_candidate(candidate))
 
-    now_iso = exports._utc_now_iso()
+    now_iso = watch_io._utc_now_iso()
 
     repo_notes_updated = 0
     repo_notes_missing = 0
@@ -436,7 +420,7 @@ def sync_watch_candidates_to_notes(
         active_seed_ids = {
             seed_id
             for seed_id in (
-                exports._normalize_watch_seed_id(candidate.id)
+                watch_io._normalize_watch_seed_id(candidate.id)
                 for candidate in [*repo_candidates, *npm_candidates]
             )
             if seed_id
@@ -445,18 +429,15 @@ def sync_watch_candidates_to_notes(
         repo_notes_archived = int(prune_stats.get("repo_notes_archived", 0))
         npm_notes_archived = int(prune_stats.get("npm_notes_archived", 0))
 
-    repo_candidate_payloads = [candidate.to_dict() for candidate in repo_candidates]
-    npm_candidate_payloads = [candidate.to_dict() for candidate in npm_candidates]
-
     return {
         "scanned_notes": int(collected.get("scanned_notes", 0)),
         "pi_candidates": int(collected.get("pi_candidates", 0)),
         "repo_candidates": len(repo_candidates),
         "npm_candidates": len(npm_candidates),
         "npm_lookups": int(collected.get("npm_lookups", 0)),
-        "repo_confidence_counts": _confidence_counts(repo_candidate_payloads),
-        "npm_confidence_counts": _confidence_counts(npm_candidate_payloads),
-        "signal_source_counts": _signal_source_counts([*repo_candidate_payloads, *npm_candidate_payloads]),
+        "repo_confidence_counts": watch_candidate_confidence_counts(repo_candidates),
+        "npm_confidence_counts": watch_candidate_confidence_counts(npm_candidates),
+        "signal_source_counts": watch_candidate_signal_source_counts([*repo_candidates, *npm_candidates]),
         "repo_notes_updated": repo_notes_updated,
         "repo_notes_missing": repo_notes_missing,
         "repo_notes_reactivated": repo_notes_reactivated,

@@ -1,4 +1,4 @@
-from crawl_github_starred import watchlist_exports
+from crawl_github_starred.watch import candidates as watch_candidates
 from crawl_github_starred.watch.models import WatchCandidate
 
 
@@ -6,7 +6,7 @@ ALLOWED_CONFIDENCE = {"low", "medium", "high"}
 
 
 def test_repo_candidate_contract_includes_signal_metadata() -> None:
-    candidate = watchlist_exports._as_repo_candidate(
+    candidate_model = watch_candidates._build_repo_candidate(
         note_path="C:/tmp/23.03.123_rocket.md",
         frontmatter={
             "repo": "acme/rocket",
@@ -18,6 +18,8 @@ def test_repo_candidate_contract_includes_signal_metadata() -> None:
         reasons=["topic:pi-extension", "signal:pi-extension"],
         fallback_discovered_at="2026-02-17T00:00:00Z",
     )
+
+    candidate = candidate_model.to_dict()
 
     required = {
         "id",
@@ -53,11 +55,12 @@ def test_npm_candidate_contract_includes_signal_metadata() -> None:
         "tags": ["pi/extension", "source/github-starred"],
     }
 
-    candidate = watchlist_exports._as_npm_candidate(
+    candidate_model = watch_candidates._build_npm_candidate(
         package_name="@badlogic/pi",
         repo_candidate=repo_candidate,
         fallback_discovered_at="2026-02-17T00:00:00Z",
     )
+    candidate = candidate_model.to_dict()
 
     required = {
         "id",
@@ -84,7 +87,7 @@ def test_npm_candidate_contract_includes_signal_metadata() -> None:
     assert candidate["confidence"] in ALLOWED_CONFIDENCE
 
 
-def test_repo_candidate_model_wrapper_keeps_dict_parity() -> None:
+def test_repo_candidate_builder_returns_typed_model() -> None:
     payload = {
         "note_path": "C:/tmp/23.03.123_rocket.md",
         "frontmatter": {
@@ -98,14 +101,13 @@ def test_repo_candidate_model_wrapper_keeps_dict_parity() -> None:
         "fallback_discovered_at": "2026-02-17T00:00:00Z",
     }
 
-    candidate_dict = watchlist_exports._as_repo_candidate(**payload)
-    candidate_model = watchlist_exports._as_repo_candidate_model(**payload)
+    candidate_model = watch_candidates._build_repo_candidate(**payload)
 
     assert isinstance(candidate_model, WatchCandidate)
-    assert candidate_model.to_dict() == candidate_dict
+    assert candidate_model.to_dict()["id"] == "github:acme/rocket"
 
 
-def test_npm_candidate_model_wrapper_keeps_dict_parity() -> None:
+def test_npm_candidate_builder_returns_typed_model() -> None:
     repo_candidate = {
         "id": "github:acme/rocket",
         "title": "acme/rocket",
@@ -113,16 +115,11 @@ def test_npm_candidate_model_wrapper_keeps_dict_parity() -> None:
         "tags": ["pi/extension", "source/github-starred"],
     }
 
-    candidate_dict = watchlist_exports._as_npm_candidate(
-        package_name="@badlogic/pi",
-        repo_candidate=repo_candidate,
-        fallback_discovered_at="2026-02-17T00:00:00Z",
-    )
-    candidate_model = watchlist_exports._as_npm_candidate_model(
+    candidate_model = watch_candidates._build_npm_candidate(
         package_name="@badlogic/pi",
         repo_candidate=repo_candidate,
         fallback_discovered_at="2026-02-17T00:00:00Z",
     )
 
     assert isinstance(candidate_model, WatchCandidate)
-    assert candidate_model.to_dict() == candidate_dict
+    assert candidate_model.to_dict()["id"] == "npm:@badlogic/pi"

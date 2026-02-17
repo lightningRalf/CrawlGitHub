@@ -2,15 +2,15 @@ from pathlib import Path
 from typing import Any
 
 from crawl_github_starred import bases_files
-from crawl_github_starred import watchlist_exports
+from crawl_github_starred.watch import sync as watch_sync
 
 
 def test_local_only_watch_sync_prune_and_base_generation(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    monkeypatch.setattr(watchlist_exports.config, "WORKING_DIRECTORY", str(tmp_path))
-    monkeypatch.setattr(watchlist_exports.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
+    monkeypatch.setattr(watch_sync.config, "WORKING_DIRECTORY", str(tmp_path))
+    monkeypatch.setattr(watch_sync.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
 
     monkeypatch.setattr(bases_files.config, "WORKING_DIRECTORY", str(tmp_path))
     monkeypatch.setattr(bases_files.config, "WATCH_CANDIDATES_BASE_FILE", "watch-candidates.base")
@@ -40,7 +40,7 @@ def test_local_only_watch_sync_prune_and_base_generation(
         encoding="utf-8",
     )
 
-    stats_first = watchlist_exports.sync_watch_candidates_to_notes(
+    stats_first = watch_sync.sync_watch_candidates_to_notes(
         max_npm_lookups=0,
         prune_missing=True,
     )
@@ -71,7 +71,7 @@ def test_local_only_watch_sync_prune_and_base_generation(
         encoding="utf-8",
     )
 
-    stats_second = watchlist_exports.sync_watch_candidates_to_notes(
+    stats_second = watch_sync.sync_watch_candidates_to_notes(
         max_npm_lookups=0,
         prune_missing=True,
     )
@@ -90,7 +90,7 @@ def test_local_only_watch_sync_prune_and_base_generation(
     assert "watch_archived_at:" in npm_text_after_prune
 
     # Third run is idempotent: already-archived stale notes stay unchanged.
-    stats_third = watchlist_exports.sync_watch_candidates_to_notes(
+    stats_third = watch_sync.sync_watch_candidates_to_notes(
         max_npm_lookups=0,
         prune_missing=True,
     )

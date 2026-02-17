@@ -31,8 +31,8 @@ def test_watch_sync_subcommand_runs_local_sync_only(
         calls["export"] += 1
         return {}
 
-    monkeypatch.setattr(main.watchlist_exports, "sync_watch_candidates_to_notes", fake_sync)
-    monkeypatch.setattr(main.watchlist_exports, "export_watch_seed_files", fake_export)
+    monkeypatch.setattr(main.watch_sync, "sync_watch_candidates_to_notes", fake_sync)
+    monkeypatch.setattr(main.watch_export, "export_watch_seed_files", fake_export)
 
     monkeypatch.setattr(
         sys,
@@ -74,8 +74,8 @@ def test_watch_export_subcommand_runs_local_export_only(
         assert max_npm_lookups == 3
         return {}
 
-    monkeypatch.setattr(main.watchlist_exports, "sync_watch_candidates_to_notes", fake_sync)
-    monkeypatch.setattr(main.watchlist_exports, "export_watch_seed_files", fake_export)
+    monkeypatch.setattr(main.watch_sync, "sync_watch_candidates_to_notes", fake_sync)
+    monkeypatch.setattr(main.watch_export, "export_watch_seed_files", fake_export)
 
     monkeypatch.setattr(
         sys,
@@ -122,8 +122,8 @@ def test_crawl_subcommand_keeps_legacy_local_only_flag_flow(
         calls["export"] += 1
         return {}
 
-    monkeypatch.setattr(main.watchlist_exports, "sync_watch_candidates_to_notes", fake_sync)
-    monkeypatch.setattr(main.watchlist_exports, "export_watch_seed_files", fake_export)
+    monkeypatch.setattr(main.watch_sync, "sync_watch_candidates_to_notes", fake_sync)
+    monkeypatch.setattr(main.watch_export, "export_watch_seed_files", fake_export)
 
     monkeypatch.setattr(
         sys,
@@ -168,8 +168,8 @@ def test_legacy_flag_only_invocation_is_backward_compatible(
         calls["export"] += 1
         return {}
 
-    monkeypatch.setattr(main.watchlist_exports, "sync_watch_candidates_to_notes", fake_sync)
-    monkeypatch.setattr(main.watchlist_exports, "export_watch_seed_files", fake_export)
+    monkeypatch.setattr(main.watch_sync, "sync_watch_candidates_to_notes", fake_sync)
+    monkeypatch.setattr(main.watch_export, "export_watch_seed_files", fake_export)
 
     monkeypatch.setattr(
         sys,
@@ -214,3 +214,45 @@ def test_top_level_help_shows_subcommands(
 
     captured = capsys.readouterr()
     assert "{crawl,watch}" in captured.out
+    assert "Examples:" in captured.out
+
+
+def test_watch_export_help_shows_only_export_flags(
+    monkeypatch: Any,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["crawl-github", "watch", "export", "--help"])
+
+    with pytest.raises(SystemExit):
+        main.main()
+
+    captured = capsys.readouterr()
+    assert "--export-watch-seeds" in captured.out
+    assert "--export-npm-seeds" in captured.out
+    assert "--max-npm-lookups" in captured.out
+    assert "--sync-watch-candidates" not in captured.out
+    assert "--prune-watch-candidates" not in captured.out
+    assert "--skip-bases" not in captured.out
+
+
+def test_watch_sync_help_shows_sync_flags(
+    monkeypatch: Any,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["crawl-github", "watch", "sync", "--help"])
+
+    with pytest.raises(SystemExit):
+        main.main()
+
+    captured = capsys.readouterr()
+    assert "--skip-bases" in captured.out
+    assert "--prune-watch-candidates" in captured.out
+
+
+def test_watch_export_parse_defaults_stay_explicit() -> None:
+    args = main._parse_args(["watch", "export"])
+
+    assert args.export_seeds_only is True
+    assert args.sync_watch_candidates is False
+    assert args.prune_watch_candidates is False
+    assert args.max_npm_lookups == 0

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 
 def _as_str(value: Any, default: str = "") -> str:
@@ -44,6 +44,9 @@ def _as_str_list(value: Any) -> list[str]:
             items.append(cleaned)
 
     return items
+
+
+_ALLOWED_CONFIDENCE = {"low", "medium", "high"}
 
 
 @dataclass
@@ -184,27 +187,113 @@ def candidate_reason_fragments(candidate: WatchCandidateLike) -> list[str]:
     return _normalize_reason_fragments(candidate_model.why_watch)
 
 
-def refresh_watch_candidate_signal_metadata(candidate: WatchCandidateLike) -> WatchCandidate:
-    from .signals import _candidate_signal_sources
+def candidate_signal_sources(
+    candidate: WatchCandidateLike,
+    reason_fragments: Sequence[str] | None = None,
+) -> list[str]:
+    from .signals import _SIGNAL_SOURCE_ORDER
+    from .signals import _append_unique
+    from .signals import _signal_sources_from_reasons
+
+    candidate_model = as_watch_candidate(candidate)
+    reasons = (
+        [str(reason).strip() for reason in reason_fragments if str(reason).strip()]
+        if reason_fragments is not None
+        else candidate_reason_fragments(candidate_model)
+    )
+
+    provided_sources: list[str] = []
+    for source in candidate_model.signal_sources:
+        cleaned = str(source).strip().lower()
+        if cleaned:
+            _append_unique(provided_sources, cleaned)
+
+    if provided_sources:
+        ordered: list[str] = []
+        for source in _SIGNAL_SOURCE_ORDER:
+            if source in provided_sources:
+                ordered.append(source)
+
+        for source in provided_sources:
+            if source not in ordered:
+                ordered.append(source)
+
+        return ordered
+
+    return _signal_sources_from_reasons(reasons)
+
+
+def candidate_confidence(
+    candidate: WatchCandidateLike,
+    reason_fragments: Sequence[str] | None = None,
+) -> str:
     from .signals import _watch_confidence
 
+    candidate_model = as_watch_candidate(candidate)
+    reasons = (
+        [str(reason).strip() for reason in reason_fragments if str(reason).strip()]
+        if reason_fragments is not None
+        else candidate_reason_fragments(candidate_model)
+    )
+
+    tags = [str(tag).strip() for tag in candidate_model.tags if str(tag).strip()]
+
+    confidence = candidate_model.confidence.strip().lower()
+    if confidence not in _ALLOWED_CONFIDENCE:
+        confidence = _watch_confidence(tags, reasons)
+
+    return confidence
+
+
+def watch_candidate_confidence_counts(candidates: Sequence[WatchCandidateLike]) -> dict[str, int]:
+    counts: dict[str, int] = {"high": 0, "medium": 0, "low": 0}
+
+    for candidate in candidates:
+        confidence = candidate_confidence(candidate)
+        if confidence not in counts:
+            confidence = "low"
+
+        counts[confidence] = counts.get(confidence, 0) + 1
+
+    return {key: value for key, value in counts.items() if value > 0}
+
+
+def watch_candidate_signal_source_counts(candidates: Sequence[WatchCandidateLike]) -> dict[str, int]:
+    from .signals import _SIGNAL_SOURCE_ORDER
+
+    counts: dict[str, int] = {}
+
+    for candidate in candidates:
+        sources = candidate_signal_sources(candidate)
+
+        for source in sources:
+            counts[source] = counts.get(source, 0) + 1
+
+    ordered_sources: list[str] = []
+    for source in _SIGNAL_SOURCE_ORDER:
+        if source in counts:
+            ordered_sources.append(source)
+
+    for source in sorted(counts):
+        if source not in ordered_sources:
+            ordered_sources.append(source)
+
+    return {source: counts[source] for source in ordered_sources}
+
+
+def refresh_watch_candidate_signal_metadata(candidate: WatchCandidateLike) -> WatchCandidate:
     candidate_model = as_watch_candidate(candidate)
 
     reasons = candidate_reason_fragments(candidate_model)
     if not reasons and candidate_model.why_watch.strip():
         reasons = [candidate_model.why_watch.strip()]
 
-    tags = [str(tag).strip() for tag in candidate_model.tags if str(tag).strip()]
-    sources = _candidate_signal_sources(candidate_model.to_dict(), reasons)
-
-    confidence = candidate_model.confidence.strip().lower()
-    if confidence not in {"low", "medium", "high"}:
-        confidence = _watch_confidence(tags, reasons)
+    sources = candidate_signal_sources(candidate_model, reasons)
 
     candidate_model.signal_reasons = reasons
     candidate_model.signal_sources = sources
     candidate_model.signal_count = len(reasons)
-    candidate_model.confidence = confidence
+    candidate_model.confidence = candidate_confidence(candidate_model, reasons)
     candidate_model.why_watch = "; ".join(reasons) if reasons else ""
 
     return candidate_model

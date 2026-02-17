@@ -10,7 +10,8 @@ from . import config
 from . import github_api
 from . import repo_info
 from . import starred_repos_file
-from . import watchlist_exports
+from .watch import export as watch_export
+from .watch import sync as watch_sync
 import stamina
 
 
@@ -51,22 +52,17 @@ def _write_watch_telemetry(event_type: str, stats: dict[str, object]) -> str | N
     return path
 
 
-def _add_watch_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--skip-bases",
-        action="store_true",
-        help="Do not regenerate Obsidian .base files.",
-    )
-    parser.add_argument(
-        "--sync-watch-candidates",
-        action="store_true",
-        help="Sync watch candidates into note frontmatter and npm candidate notes.",
-    )
-    parser.add_argument(
-        "--prune-watch-candidates",
-        action="store_true",
-        help="Archive watch candidates no longer detected during sync (sets watch_status=archived).",
-    )
+CLI_EPILOG = "\n".join(
+    [
+        "Examples:",
+        "  crawl-github watch sync --prune-watch-candidates --max-npm-lookups 0",
+        "  crawl-github watch export --export-watch-seeds watch-github.jsonl --export-npm-seeds watch-npm.jsonl",
+        "  crawl-github --export-seeds-only --sync-watch-candidates --max-npm-lookups 0",
+    ]
+)
+
+
+def _add_watch_seed_export_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--export-watch-seeds",
         type=str,
@@ -85,11 +81,44 @@ def _add_watch_arguments(parser: argparse.ArgumentParser) -> None:
         default=0,
         help="Optional cap for npm metadata enrichment requests (default: 0).",
     )
+
+
+def _add_watch_legacy_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--skip-bases",
+        action="store_true",
+        help="Do not regenerate Obsidian .base files.",
+    )
+    parser.add_argument(
+        "--sync-watch-candidates",
+        action="store_true",
+        help="Sync watch candidates into note frontmatter and npm candidate notes.",
+    )
+    parser.add_argument(
+        "--prune-watch-candidates",
+        action="store_true",
+        help="Archive watch candidates no longer detected during sync (sets watch_status=archived).",
+    )
+    _add_watch_seed_export_arguments(parser)
     parser.add_argument(
         "--export-seeds-only",
         action="store_true",
         help="Only export watch seeds from local notes (no GitHub API calls).",
     )
+
+
+def _add_watch_sync_subcommand_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--skip-bases",
+        action="store_true",
+        help="Do not regenerate Obsidian .base files after sync.",
+    )
+    parser.add_argument(
+        "--prune-watch-candidates",
+        action="store_true",
+        help="Archive watch candidates no longer detected during sync (sets watch_status=archived).",
+    )
+    _add_watch_seed_export_arguments(parser)
 
 
 def _add_crawl_arguments(parser: argparse.ArgumentParser) -> None:
@@ -136,36 +165,44 @@ def _add_crawl_arguments(parser: argparse.ArgumentParser) -> None:
         help="Maximum README snapshot updates per run.",
     )
 
-    _add_watch_arguments(parser)
+    _add_watch_legacy_arguments(parser)
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Fetch starred GitHub repos and update notes.")
+    parser = argparse.ArgumentParser(
+        description="Fetch starred GitHub repos and update notes.",
+        epilog=CLI_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     crawl_parser = subparsers.add_parser(
         "crawl",
         help="Run the full crawl workflow (default when no command is provided).",
+        description="Run the full crawl workflow against GitHub starred repositories.",
     )
     _add_crawl_arguments(crawl_parser)
 
     watch_parser = subparsers.add_parser(
         "watch",
         help="Run local-only watch workflows.",
+        description="Run local-only watch workflows (no GitHub API calls).",
     )
     watch_subparsers = watch_parser.add_subparsers(dest="watch_command", required=True)
 
     watch_sync_parser = watch_subparsers.add_parser(
         "sync",
         help="Sync watch candidates into notes/frontmatter.",
+        description="Sync watch candidates into notes/frontmatter and optionally export seed JSONL files.",
     )
-    _add_watch_arguments(watch_sync_parser)
+    _add_watch_sync_subcommand_arguments(watch_sync_parser)
 
     watch_export_parser = watch_subparsers.add_parser(
         "export",
         help="Export watch seeds from local notes.",
+        description="Export watch seeds from local notes without running a GitHub crawl.",
     )
-    _add_watch_arguments(watch_export_parser)
+    _add_watch_seed_export_arguments(watch_export_parser)
 
     return parser
 
@@ -182,8 +219,19 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     args = parser.parse_args(argv_to_parse)
 
-    if not hasattr(args, "watch_command"):
-        args.watch_command = None
+    defaults: dict[str, object] = {
+        "watch_command": None,
+        "skip_bases": False,
+        "sync_watch_candidates": False,
+        "prune_watch_candidates": False,
+        "export_watch_seeds": None,
+        "export_npm_seeds": None,
+        "max_npm_lookups": 0,
+        "export_seeds_only": False,
+    }
+    for key, default_value in defaults.items():
+        if not hasattr(args, key):
+            setattr(args, key, default_value)
 
     if args.command == "watch":
         args.export_seeds_only = True
@@ -221,7 +269,7 @@ def main():
         logger.warning("--prune-watch-candidates has no effect without --sync-watch-candidates.")
 
     def run_watch_seed_export() -> None:
-        export_stats = watchlist_exports.export_watch_seed_files(
+        export_stats = watch_export.export_watch_seed_files(
             github_output_path=args.export_watch_seeds,
             npm_output_path=args.export_npm_seeds,
             max_npm_lookups=max(0, args.max_npm_lookups),
@@ -247,7 +295,7 @@ def main():
             logger.info("Wrote watch telemetry: %s", telemetry_path)
 
     def run_watch_candidate_sync() -> None:
-        sync_stats = watchlist_exports.sync_watch_candidates_to_notes(
+        sync_stats = watch_sync.sync_watch_candidates_to_notes(
             max_npm_lookups=max(0, args.max_npm_lookups),
             prune_missing=args.prune_watch_candidates,
         )
@@ -291,9 +339,14 @@ def main():
             did_any_seed_action = True
 
         if not did_any_seed_action:
-            logger.warning(
-                "--export-seeds-only was set without --sync-watch-candidates or export output paths."
-            )
+            if args.command == "watch" and args.watch_command == "export":
+                logger.warning(
+                    "watch export needs --export-watch-seeds and/or --export-npm-seeds."
+                )
+            else:
+                logger.warning(
+                    "--export-seeds-only was set without --sync-watch-candidates or export output paths."
+                )
 
         logger.info("Repository information generation completed")
         return

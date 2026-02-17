@@ -1,12 +1,13 @@
 from pathlib import Path
 from typing import Any
 
-from crawl_github_starred import watchlist_exports
+from crawl_github_starred.watch import candidates as watch_candidates
+from crawl_github_starred.watch import sync as watch_sync
 from crawl_github_starred.watch.models import WatchCandidate
 
 
 def test_npm_candidate_relative_path_is_stable(monkeypatch: Any) -> None:
-    monkeypatch.setattr(watchlist_exports.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
+    monkeypatch.setattr(watch_sync.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
 
     candidate = {
         "id": "npm:@badlogic/pi",
@@ -14,8 +15,8 @@ def test_npm_candidate_relative_path_is_stable(monkeypatch: Any) -> None:
         "title": "@badlogic/pi",
     }
 
-    path_a = watchlist_exports._npm_candidate_relative_path(candidate)
-    path_b = watchlist_exports._npm_candidate_relative_path(candidate)
+    path_a = watch_sync._npm_candidate_relative_path(candidate)
+    path_b = watch_sync._npm_candidate_relative_path(candidate)
 
     assert path_a == path_b
     assert path_a.startswith("watch-candidates/")
@@ -23,7 +24,7 @@ def test_npm_candidate_relative_path_is_stable(monkeypatch: Any) -> None:
 
 
 def test_npm_candidate_relative_path_accepts_typed_model(monkeypatch: Any) -> None:
-    monkeypatch.setattr(watchlist_exports.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
+    monkeypatch.setattr(watch_sync.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
 
     candidate = WatchCandidate.from_dict(
         {
@@ -35,7 +36,7 @@ def test_npm_candidate_relative_path_accepts_typed_model(monkeypatch: Any) -> No
         }
     )
 
-    path_value = watchlist_exports._npm_candidate_relative_path(candidate)
+    path_value = watch_sync._npm_candidate_relative_path(candidate)
 
     assert path_value.startswith("watch-candidates/")
     assert path_value.endswith(".md")
@@ -45,8 +46,8 @@ def test_sync_watch_candidates_to_notes_updates_repo_and_creates_npm_note(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    monkeypatch.setattr(watchlist_exports.config, "WORKING_DIRECTORY", str(tmp_path))
-    monkeypatch.setattr(watchlist_exports.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
+    monkeypatch.setattr(watch_sync.config, "WORKING_DIRECTORY", str(tmp_path))
+    monkeypatch.setattr(watch_sync.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
 
     repo_note_path = tmp_path / "23.03.999_rocket.md"
     repo_note_path.write_text(
@@ -94,9 +95,9 @@ def test_sync_watch_candidates_to_notes_updates_repo_and_creates_npm_note(
             "npm_lookups": 0,
         }
 
-    monkeypatch.setattr(watchlist_exports, "_collect_watch_seed_candidates", fake_collect)
+    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidates", fake_collect)
 
-    stats = watchlist_exports.sync_watch_candidates_to_notes(max_npm_lookups=0)
+    stats = watch_sync.sync_watch_candidates_to_notes(max_npm_lookups=0)
 
     assert stats["repo_notes_updated"] == 1
     assert stats["npm_notes_created"] == 1
@@ -127,8 +128,8 @@ def test_sync_watch_candidates_accepts_typed_candidate_collection(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    monkeypatch.setattr(watchlist_exports.config, "WORKING_DIRECTORY", str(tmp_path))
-    monkeypatch.setattr(watchlist_exports.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
+    monkeypatch.setattr(watch_sync.config, "WORKING_DIRECTORY", str(tmp_path))
+    monkeypatch.setattr(watch_sync.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
 
     repo_note_path = tmp_path / "23.03.998_typed.md"
     repo_note_path.write_text(
@@ -192,9 +193,9 @@ def test_sync_watch_candidates_accepts_typed_candidate_collection(
             "npm_lookups": 0,
         }
 
-    monkeypatch.setattr(watchlist_exports, "_collect_watch_seed_candidates", fake_collect)
+    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidates", fake_collect)
 
-    stats = watchlist_exports.sync_watch_candidates_to_notes(max_npm_lookups=0)
+    stats = watch_sync.sync_watch_candidates_to_notes(max_npm_lookups=0)
 
     assert stats["repo_notes_updated"] == 1
     assert stats["npm_notes_created"] == 1
@@ -204,8 +205,8 @@ def test_sync_watch_candidates_reactivates_archived_notes(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    monkeypatch.setattr(watchlist_exports.config, "WORKING_DIRECTORY", str(tmp_path))
-    monkeypatch.setattr(watchlist_exports.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
+    monkeypatch.setattr(watch_sync.config, "WORKING_DIRECTORY", str(tmp_path))
+    monkeypatch.setattr(watch_sync.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
 
     repo_note_path = tmp_path / "23.03.900_archived-repo.md"
     repo_note_path.write_text(
@@ -235,7 +236,7 @@ def test_sync_watch_candidates_reactivates_archived_notes(
         "fromRepos": ["acme/archived"],
         "fromRepoIds": ["github:acme/archived"],
     }
-    npm_relative_path = watchlist_exports._npm_candidate_relative_path(npm_candidate)
+    npm_relative_path = watch_sync._npm_candidate_relative_path(npm_candidate)
     npm_note_path = tmp_path / npm_relative_path
     npm_note_path.parent.mkdir(parents=True, exist_ok=True)
     npm_note_path.write_text(
@@ -273,9 +274,9 @@ def test_sync_watch_candidates_reactivates_archived_notes(
             "npm_lookups": 0,
         }
 
-    monkeypatch.setattr(watchlist_exports, "_collect_watch_seed_candidates", fake_collect)
+    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidates", fake_collect)
 
-    stats = watchlist_exports.sync_watch_candidates_to_notes(max_npm_lookups=0)
+    stats = watch_sync.sync_watch_candidates_to_notes(max_npm_lookups=0)
 
     assert stats["repo_notes_reactivated"] == 1
     assert stats["npm_notes_reactivated"] == 1
@@ -293,8 +294,8 @@ def test_sync_watch_candidates_prunes_missing_candidates(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    monkeypatch.setattr(watchlist_exports.config, "WORKING_DIRECTORY", str(tmp_path))
-    monkeypatch.setattr(watchlist_exports.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
+    monkeypatch.setattr(watch_sync.config, "WORKING_DIRECTORY", str(tmp_path))
+    monkeypatch.setattr(watch_sync.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
 
     active_repo_path = tmp_path / "23.03.901_active.md"
     active_repo_path.write_text(
@@ -361,9 +362,9 @@ def test_sync_watch_candidates_prunes_missing_candidates(
             "npm_lookups": 0,
         }
 
-    monkeypatch.setattr(watchlist_exports, "_collect_watch_seed_candidates", fake_collect)
+    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidates", fake_collect)
 
-    stats = watchlist_exports.sync_watch_candidates_to_notes(
+    stats = watch_sync.sync_watch_candidates_to_notes(
         max_npm_lookups=0,
         prune_missing=True,
     )

@@ -22,6 +22,7 @@ Fetches starred repositories for a configured GitHub user (defaults to `lightnin
 - Watch candidate lifecycle sync can archive stale candidates (`watch_status: archived`) with `--prune-watch-candidates` and tracks reactivation/archive timestamps
 - Watch heuristics use boundary-aware marker matching, frontmatter-weighted phrase signals, and conservative repo anchors to reduce false positives
 - Synced watch notes include explainability fields (`watch_signal_sources`, `watch_signal_count`, `watch_confidence`) for clearer Bases triage
+- Optional watch telemetry JSON artifact can be emitted each watch sync/export run
 - Deduplicated `23.03.01_CrawlGitHubURLs.md` maintenance section
 - Cached API responses (ETag/Last-Modified) in `tools/cache`
 - Retry logic with `stamina`
@@ -59,6 +60,7 @@ Optional environment variables:
 - `CRAWLGITHUB_README_NOTES_SUBDIR` (default: `23.03_READMEs`)
 - `CRAWLGITHUB_WATCH_CANDIDATES_SUBDIR` (default: `23.03_WatchCandidates`)
 - `CRAWLGITHUB_WATCH_CANDIDATES_BASE_FILE` (default: `23.03.00_WatchCandidates.base`)
+- `CRAWLGITHUB_WATCH_TELEMETRY_FILE` (default: empty/disabled; relative paths resolve under `CRAWLGITHUB_WORKING_DIR`)
 
 ## Usage
 

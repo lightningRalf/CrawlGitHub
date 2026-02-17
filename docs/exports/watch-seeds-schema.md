@@ -44,6 +44,15 @@ When using `--sync-watch-candidates` (with or without pruning), notes can includ
 - `watch_archived_at` (set when pruned/archived)
 - `watch_signal_sources`, `watch_signal_count`, `watch_confidence` (triage explainability fields)
 
+### Optional telemetry artifact
+
+If `CRAWLGITHUB_WATCH_TELEMETRY_FILE` is configured, each watch sync/export run writes
+a machine-readable JSON summary containing:
+
+- `event` (`watch-candidate-sync` or `watch-seed-export`)
+- `written_at` (UTC timestamp)
+- `stats` (including confidence/source distributions)
+
 ## Tagging heuristics
 
 Classification tags:

@@ -1,0 +1,54 @@
+{
+  "pairs": [
+    {
+      "loser": "23.03.656_OmniJarvis.md",
+      "keeper": "23.03.806_OmniJARVIS.md",
+      "status": "merged-and-removed",
+      "loser_rows": 4,
+      "keeper_rows_before": 27,
+      "keeper_rows_after": 31,
+      "rows_added_to_keeper": 4,
+      "keeper_changed": true
+    },
+    {
+      "loser": "23.03.1276_Fabric.md",
+      "keeper": "23.03.520_fabric.md",
+      "status": "merged-and-removed",
+      "loser_rows": 9,
+      "keeper_rows_before": 30,
+      "keeper_rows_after": 39,
+      "rows_added_to_keeper": 9,
+      "keeper_changed": true
+    },
+    {
+      "loser": "23.03.128_e2b.md",
+      "keeper": "23.03.442_E2B.md",
+      "status": "merged-and-removed",
+      "loser_rows": 7,
+      "keeper_rows_before": 41,
+      "keeper_rows_after": 48,
+      "rows_added_to_keeper": 7,
+      "keeper_changed": true
+    },
+    {
+      "loser": "23.03.131_big-agi.md",
+      "keeper": "23.03.444_big-AGI.md",
+      "status": "merged-and-removed",
+      "loser_rows": 7,
+      "keeper_rows_before": 41,
+      "keeper_rows_after": 48,
+      "rows_added_to_keeper": 7,
+      "keeper_changed": true
+    },
+    {
+      "loser": "23.03.550_memary.md",
+      "keeper": "23.03.686_Memary.md",
+      "status": "merged-and-removed",
+      "loser_rows": 6,
+      "keeper_rows_before": 30,
+      "keeper_rows_after": 36,
+      "rows_added_to_keeper": 6,
+      "keeper_changed": true
+    }
+  ]
+}

@@ -1,0 +1,526 @@
+{
+  "root": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code",
+  "start_number": 1501,
+  "limit": 150,
+  "dry_run": true,
+  "selected_files": 64,
+  "changed_files": 64,
+  "frontmatter_added": 0,
+  "rows_removed": 0,
+  "readme_links_added": 64,
+  "readme_placeholders_created": 0,
+  "files": [
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1501_pi-interactive-shell.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1502_qmd.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1503_maptoposter.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1504_pi-interview-tool.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1505_comtrya.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1506_figma-use.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1507_bash-ast.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1508_ergo.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1509_critique.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1510_difit.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1511_gitui.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1512_excalidraw-animate.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1513_nemotron-january-2026.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1514_openwork.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1515_happy-cli.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1516_speechlib.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1517_NeMo.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1518_whisply.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1519_happy.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1520_happy-server.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1521_python-gitlab.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1522_loom.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1523_parallels.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1524_agent-stuff.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1525_codemapper.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1526_NovaSR.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1527_prek.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1528_meta_skill.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1529_mrmd-editor.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1530_pi-skill-palette.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1531_pi-prompt-template-model.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1532_pi-notify-pp.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1533_devtools.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1534_pi-extensions.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1535_DroPE.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1536_coding_agent_session_search.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1537_opentofu.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1538_pi-notification-extension.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1539_pi-powerline-footer.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1540_s3-practical-guide.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1541_mimesis.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1542_how-to-ralph-wiggum.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1543_eddoapp.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1544_libavoid-rust.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1545_libmatoya.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1546_panelstatus.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1547_parakeet-stream.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1548_dotmax.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1549_CrabCrust.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1550_mrmd-legacy.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1551_maivi.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1552_mediapipe.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1553_surf-cli.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1554_excalidraw-cli.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1555_tla-specs-codegen.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1556_simple-llm.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1557_skills.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1558_ralph.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1559_weft.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1560_claude-code-ui.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1561_codecall.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1562_pierre.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1563_espanso.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    },
+    {
+      "file": "C:\\Users\\mjpa\\Documents\\Obsidian\\20-29_Input\\23_Schriftliches\\23.03_Code\\23.03.1564_pi-agent-scip.md",
+      "changed": true,
+      "frontmatter_added": false,
+      "rows_removed": 0,
+      "readme_links_added": true,
+      "readme_placeholder_created": false
+    }
+  ]
+}

@@ -10,6 +10,29 @@ Use `tools/migrate_repo_notes.py` in batches to avoid risky mass rewrites.
   - Duplicate rows removed: `995`
   - README placeholder files created: `150`
 
+- ✅ Batches 02–11 applied (`--start-number 151..1501`, `--limit 150`)
+  - Reports: `docs/migration/batch-02.json` … `docs/migration/batch-11.json`
+  - Selected files: `1414`
+  - Changed files: `1412`
+  - Duplicate rows removed: `5829`
+  - README links added: `1411`
+  - README placeholder files created: `1406`
+
+- ✅ Catch-up pass applied (`--start-number 1 --limit 5000`)
+  - Report: `docs/migration/catchup.json`
+  - Remaining changed files: `6`
+  - Additional README links added: `6`
+
+- ✅ Starred file dedupe verification
+  - Report: `docs/migration/starred-file-dedupe-02.json`
+  - Changes needed: `false`
+
+- ✅ Duplicate repo-note cleanup (post migration)
+  - Report: `docs/migration/duplicate-note-cleanup.json`
+  - Removed duplicate note files: `5`
+  - Kept canonical note files: `5`
+  - Merged historical overview rows into canonical files before deletion
+
 ## Package size
 
 - Batch size: `150` files

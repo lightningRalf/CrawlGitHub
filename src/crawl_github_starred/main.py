@@ -8,6 +8,7 @@ from . import bases_files
 from . import github_api
 from . import repo_info
 from . import starred_repos_file
+from . import watchlist_exports
 import stamina
 
 
@@ -48,6 +49,29 @@ def main():
         action="store_true",
         help="Do not regenerate Obsidian .base files.",
     )
+    parser.add_argument(
+        "--export-watch-seeds",
+        type=str,
+        default=None,
+        help="Optional JSONL path for GitHub watchlist seed export.",
+    )
+    parser.add_argument(
+        "--export-npm-seeds",
+        type=str,
+        default=None,
+        help="Optional JSONL path for npm watchlist seed export.",
+    )
+    parser.add_argument(
+        "--max-npm-lookups",
+        type=int,
+        default=0,
+        help="Optional cap for npm metadata enrichment requests (default: 0).",
+    )
+    parser.add_argument(
+        "--export-seeds-only",
+        action="store_true",
+        help="Only export watch seeds from local notes (no GitHub API calls).",
+    )
     args = parser.parse_args()
 
     # Configure logging to both file and console
@@ -69,7 +93,34 @@ def main():
     
     logger.info(f"Working directory: {config.WORKING_DIRECTORY}")
     logger.info(f"Write permission: {os.access(config.WORKING_DIRECTORY, os.W_OK)}")
-    
+
+    def run_watch_seed_export() -> None:
+        export_stats = watchlist_exports.export_watch_seed_files(
+            github_output_path=args.export_watch_seeds,
+            npm_output_path=args.export_npm_seeds,
+            max_npm_lookups=max(0, args.max_npm_lookups),
+        )
+        logger.info(
+            "Watch seed export: scanned_notes=%s, pi_candidates=%s, repo_candidates=%s, npm_candidates=%s, npm_lookups=%s",
+            export_stats.get("scanned_notes"),
+            export_stats.get("pi_candidates"),
+            export_stats.get("repo_candidates"),
+            export_stats.get("npm_candidates"),
+            export_stats.get("npm_lookups"),
+        )
+        if args.export_watch_seeds:
+            logger.info("Wrote GitHub watch seed export: %s", args.export_watch_seeds)
+        if args.export_npm_seeds:
+            logger.info("Wrote npm watch seed export: %s", args.export_npm_seeds)
+
+    if args.export_seeds_only:
+        if not args.export_watch_seeds and not args.export_npm_seeds:
+            logger.warning("--export-seeds-only was set without export output paths.")
+        else:
+            run_watch_seed_export()
+        logger.info("Repository information generation completed")
+        return
+
     # Activate structlog-based instrumentation.
     stamina.instrumentation.set_on_retry_hooks(
         [stamina.instrumentation.StructlogOnRetryHook]
@@ -118,6 +169,9 @@ def main():
         repo_index_path, review_queue_path = bases_files.write_base_files()
         logger.info(f"Wrote base file: {repo_index_path}")
         logger.info(f"Wrote base file: {review_queue_path}")
+
+    if args.export_watch_seeds or args.export_npm_seeds:
+        run_watch_seed_export()
 
     logger.info("Repository information generation completed")
 

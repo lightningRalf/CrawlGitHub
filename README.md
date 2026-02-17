@@ -12,6 +12,9 @@ Fetches starred repositories for a configured GitHub user (defaults to `lightnin
 - Auto-generated Obsidian Bases files:
   - `23.03.00_RepoIndex.base`
   - `23.03.00_ReviewQueue.base`
+- Watchlist seed exports for pi extension scouting:
+  - GitHub candidates JSONL
+  - npm candidates JSONL (optional bounded npm enrichment)
 - Deduplicated `23.03.01_CrawlGitHubURLs.md` maintenance section
 - Cached API responses (ETag/Last-Modified) in `tools/cache`
 - Retry logic with `stamina`
@@ -68,12 +71,24 @@ PowerShell wrapper:
 - `--readme-sync-mode new`
 - `--max-readme-updates 20`
 - `--skip-bases`
+- `--export-watch-seeds docs/exports/extensions-watch-seeds.github.jsonl`
+- `--export-npm-seeds docs/exports/extensions-watch-seeds.npm.jsonl`
+- `--max-npm-lookups 10`
+- `--export-seeds-only`
 
 Example (safe incremental run):
 
 ```sh
 uv run crawl-github --skip-existing --max-repos 50 --readme-sync-mode new --max-readme-updates 10
 ```
+
+Example (export watchlist seeds from local notes, no npm API enrichment):
+
+```sh
+uv run crawl-github --export-seeds-only --export-watch-seeds docs/exports/extensions-watch-seeds.github.jsonl --export-npm-seeds docs/exports/extensions-watch-seeds.npm.jsonl --max-npm-lookups 0
+```
+
+Schema and tagging notes: `docs/exports/watch-seeds-schema.md`
 
 ## Batch migration (no API)
 
@@ -124,6 +139,7 @@ src/
     main.py
     repo_info.py
     starred_repos_file.py
+    watchlist_exports.py
 tools/
   migrate_repo_notes.py
 tests/

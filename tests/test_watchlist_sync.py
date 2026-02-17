@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any
 
 from crawl_github_starred import watchlist_exports
+from crawl_github_starred.watch.models import WatchCandidate
 
 
 def test_npm_candidate_relative_path_is_stable(monkeypatch: Any) -> None:
@@ -19,6 +20,25 @@ def test_npm_candidate_relative_path_is_stable(monkeypatch: Any) -> None:
     assert path_a == path_b
     assert path_a.startswith("watch-candidates/")
     assert path_a.endswith(".md")
+
+
+def test_npm_candidate_relative_path_accepts_typed_model(monkeypatch: Any) -> None:
+    monkeypatch.setattr(watchlist_exports.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
+
+    candidate = WatchCandidate.from_dict(
+        {
+            "id": "npm:@badlogic/pi",
+            "type": "npm",
+            "source": "npm",
+            "title": "@badlogic/pi",
+            "package": "@badlogic/pi",
+        }
+    )
+
+    path_value = watchlist_exports._npm_candidate_relative_path(candidate)
+
+    assert path_value.startswith("watch-candidates/")
+    assert path_value.endswith(".md")
 
 
 def test_sync_watch_candidates_to_notes_updates_repo_and_creates_npm_note(
@@ -101,6 +121,83 @@ def test_sync_watch_candidates_to_notes_updates_repo_and_creates_npm_note(
     assert "package: @badlogic/pi" in npm_text
     assert "watch_signal_sources: derived" in npm_text
     assert "watch_confidence: low" in npm_text
+
+
+def test_sync_watch_candidates_accepts_typed_candidate_collection(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    monkeypatch.setattr(watchlist_exports.config, "WORKING_DIRECTORY", str(tmp_path))
+    monkeypatch.setattr(watchlist_exports.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
+
+    repo_note_path = tmp_path / "23.03.998_typed.md"
+    repo_note_path.write_text(
+        "---\n"
+        "type: checkbox\n"
+        "source: github-star\n"
+        "repo: acme/typed\n"
+        "repo_url: https://github.com/acme/typed\n"
+        "---\n\n"
+        "# Repo note\n",
+        encoding="utf-8",
+    )
+
+    typed_repo_candidate = WatchCandidate.from_dict(
+        {
+            "id": "github:acme/typed",
+            "type": "repo",
+            "source": "github-starred",
+            "title": "acme/typed",
+            "repo": "acme/typed",
+            "repoUrl": "https://github.com/acme/typed",
+            "repoNote": "23.03.998_typed",
+            "tags": ["pi/extension", "source/github-starred"],
+            "whyWatch": "topic:pi-extension",
+            "signalReasons": ["topic:pi-extension"],
+            "signalSources": ["topic"],
+            "signalCount": 1,
+            "confidence": "medium",
+            "discoveredAt": "2026-02-16T00:00:00Z",
+            "owner": "you",
+        }
+    )
+
+    typed_npm_candidate = WatchCandidate.from_dict(
+        {
+            "id": "npm:@badlogic/pi",
+            "type": "npm",
+            "source": "npm",
+            "title": "@badlogic/pi",
+            "package": "@badlogic/pi",
+            "tags": ["pi/extension", "source/npm"],
+            "whyWatch": "derived-from:acme/typed",
+            "signalReasons": ["derived-from:acme/typed"],
+            "signalSources": ["derived"],
+            "signalCount": 1,
+            "confidence": "low",
+            "discoveredAt": "2026-02-16T00:00:00Z",
+            "owner": "you",
+            "repoUrl": "https://github.com/acme/typed",
+            "fromRepos": ["acme/typed"],
+            "fromRepoIds": ["github:acme/typed"],
+        }
+    )
+
+    def fake_collect(max_npm_lookups: int = 0) -> dict[str, Any]:
+        return {
+            "scanned_notes": 1,
+            "pi_candidates": 1,
+            "repo_candidates": [typed_repo_candidate],
+            "npm_candidates": [typed_npm_candidate],
+            "npm_lookups": 0,
+        }
+
+    monkeypatch.setattr(watchlist_exports, "_collect_watch_seed_candidates", fake_collect)
+
+    stats = watchlist_exports.sync_watch_candidates_to_notes(max_npm_lookups=0)
+
+    assert stats["repo_notes_updated"] == 1
+    assert stats["npm_notes_created"] == 1
 
 
 def test_sync_watch_candidates_reactivates_archived_notes(

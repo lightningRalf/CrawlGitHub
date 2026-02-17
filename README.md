@@ -93,6 +93,13 @@ PowerShell wrapper:
 - `--max-npm-lookups 10`
 - `--export-seeds-only`
 
+### Subcommands (incremental CLI shape)
+
+- `uv run crawl-github crawl ...` → explicit full crawl mode
+- `uv run crawl-github watch sync ...` → local-only watch sync (`--export-seeds-only` + `--sync-watch-candidates`)
+- `uv run crawl-github watch export ...` → local-only watch export (`--export-seeds-only` + export paths)
+- Backward compatibility: `uv run crawl-github --flags ...` still works and defaults to `crawl`.
+
 Example (safe incremental run):
 
 ```sh
@@ -103,6 +110,8 @@ Example (sync watch candidates directly into Obsidian notes + WatchCandidates ba
 
 ```sh
 uv run crawl-github --export-seeds-only --sync-watch-candidates --max-npm-lookups 0
+# equivalent alias form:
+uv run crawl-github watch sync --max-npm-lookups 0
 ```
 
 Example (sync + archive candidates no longer detected):
@@ -115,6 +124,8 @@ Example (export watchlist seeds from local notes, no npm API enrichment):
 
 ```sh
 uv run crawl-github --export-seeds-only --export-watch-seeds docs/exports/extensions-watch-seeds.github.jsonl --export-npm-seeds docs/exports/extensions-watch-seeds.npm.jsonl --max-npm-lookups 0
+# equivalent alias form:
+uv run crawl-github watch export --export-watch-seeds docs/exports/extensions-watch-seeds.github.jsonl --export-npm-seeds docs/exports/extensions-watch-seeds.npm.jsonl --max-npm-lookups 0
 ```
 
 Schema and tagging notes: `docs/exports/watch-seeds-schema.md`
@@ -168,15 +179,24 @@ src/
     repo_info.py
     starred_repos_file.py
     watchlist_exports.py
+    watch/
+      __init__.py
+      models.py
+      signals.py
+      sync.py
 tools/
   migrate_repo_notes.py
 tests/
   conftest.py
   test_github_api_readme_fetch.py
   test_logging.py
+  test_main_cli_subcommands.py
+  test_main_watch_telemetry.py
   test_repo_info_core.py
   test_stamina_logging.py
   test_starred_repos_file.py
+  test_watch_models.py
+  test_watch_sync_module.py
   test_watchlist_sync.py
 README.md
 ```

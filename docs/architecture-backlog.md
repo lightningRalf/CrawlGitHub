@@ -99,17 +99,30 @@
 
 - ✅ T1 contract checks implemented (`tests/test_watchlist_contracts.py`).
 - ✅ T2 local-only integration baseline implemented (`tests/test_watchlist_local_e2e.py`).
-- 🚧 T3 started:
+- ✅ T3 module split completed:
   - created `src/crawl_github_starred/watch/`
   - extracted signal/classifier/scoring helpers to `src/crawl_github_starred/watch/signals.py`
-  - kept compatibility imports in `watchlist_exports.py`
+  - extracted sync/prune pipeline to `src/crawl_github_starred/watch/sync.py`
+  - kept compatibility shim imports in `watchlist_exports.py`
 - ✅ T4 telemetry artifact output implemented:
   - config/env: `CRAWLGITHUB_WATCH_TELEMETRY_FILE`
   - writes JSON summaries for watch sync/export runs
   - covered by `tests/test_main_watch_telemetry.py`
+- 🚧 T5 typed model migration progressed:
+  - added `src/crawl_github_starred/watch/models.py` (`WatchCandidate` + coercion helpers)
+  - shifted candidate creation + merge + collection internals to typed-first handling with dict compatibility at boundaries
+  - moved signal/metadata normalization toward typed helpers (`candidate_reason_fragments`, `refresh_watch_candidate_signal_metadata`)
+  - sync note-writing internals now consume typed signal/metadata helpers instead of dict-first helper calls
+  - wired typed coercion into npm metadata enrichment mutation paths
+  - sync now accepts typed `WatchCandidate` collections from boundaries
+  - added parity-focused tests in `tests/test_watch_models.py` and typed sync/merge/enrichment/collection-path checks in `tests/test_watchlist_sync.py` + `tests/test_watchlist_heuristics.py` + `tests/test_watchlist_contracts.py`
+- 🚧 T6 incremental CLI shape progressed:
+  - introduced explicit argparse subparsers: `crawl`, `watch sync`, `watch export`
+  - preserved legacy flag-only invocation by defaulting to `crawl` when no command is provided
+  - added CLI compatibility tests in `tests/test_main_cli_subcommands.py`
 
 ## Current next actions
 
-1. Continue T3 by extracting sync/prune functions into `src/crawl_github_starred/watch/sync.py`.
-2. Start T5 typed candidate models after sync extraction baseline is stable.
-3. Keep schema/contract drift checks green while splitting modules.
+1. Continue T5 by migrating remaining dict-heavy helper callsites in watch pipelines to typed helper usage while preserving JSONL/frontmatter parity.
+2. Continue T6 by refining subparser UX/help and keeping backward-compatible flag behavior stable.
+3. Keep schema/contract drift checks green (`signal*`, `watch_signal_*`, lifecycle timestamps).

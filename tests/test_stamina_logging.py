@@ -1,42 +1,48 @@
+import pytest
 import stamina
-import logging
-import sys
-import os
-import requests
-from crawl_github_starred import config
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(os.path.join(config.WORKING_DIRECTORY, config.LOG_FILE)),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
 
-logger = logging.getLogger("test_stamina")
+class TransientError(RuntimeError):
+    """Raised to test stamina retry behavior."""
 
-# Activate structlog-based instrumentation.
-stamina.instrumentation.set_on_retry_hooks(
-    [stamina.instrumentation.StructlogOnRetryHook]
-)
 
-@stamina.retry(
-    on=requests.exceptions.RequestException,
-    attempts=3,
-    wait_initial=1.0,
-    wait_max=5.0,
-    wait_jitter=1.0,
-)
-def test_failing_request():
-    """A function that will fail and trigger retries"""
-    logger.info("Attempting request that will fail")
-    raise requests.exceptions.ConnectionError("Test failure to trigger retry")
+def test_stamina_retries_until_exhausted() -> None:
+    attempts = {"count": 0}
 
-if __name__ == "__main__":
-    logger.info("Starting Stamina retry test")
-    try:
-        test_failing_request()
-    except Exception as e:
-        logger.error(f"Final error after retries: {e}")
+    @stamina.retry(
+        on=TransientError,
+        attempts=3,
+        wait_initial=0.0,
+        wait_max=0.0,
+        wait_jitter=0.0,
+    )
+    def always_fails() -> None:
+        attempts["count"] += 1
+        raise TransientError("boom")
+
+    with pytest.raises(TransientError, match="boom"):
+        always_fails()
+
+    assert attempts["count"] == 3
+
+
+def test_stamina_retries_then_succeeds() -> None:
+    attempts = {"count": 0}
+
+    @stamina.retry(
+        on=TransientError,
+        attempts=4,
+        wait_initial=0.0,
+        wait_max=0.0,
+        wait_jitter=0.0,
+    )
+    def flaky() -> str:
+        attempts["count"] += 1
+        if attempts["count"] < 3:
+            raise TransientError("retry")
+        return "ok"
+
+    result = flaky()
+
+    assert result == "ok"
+    assert attempts["count"] == 3

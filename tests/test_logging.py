@@ -1,45 +1,52 @@
-# test_logging.py
+import io
 import logging
-import os
-import sys
-from crawl_github_starred import config
+from pathlib import Path
 
-def test_logging():
-    # Configure logging to both file and console
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.FileHandler(os.path.join(config.WORKING_DIRECTORY, config.LOG_FILE)),
-            logging.StreamHandler(sys.stdout)  # Add console output
-        ]
-    )
-    
-    logger = logging.getLogger("test")
-    
-    logger.info("This is a test INFO message")
-    logger.warning("This is a test WARNING message")
-    logger.error("This is a test ERROR message")
-    
-    # Test directory permissions
-    if not os.path.exists(config.WORKING_DIRECTORY):
-        logger.error(f"Working directory does not exist: {config.WORKING_DIRECTORY}")
-        os.makedirs(config.WORKING_DIRECTORY, exist_ok=True)
-        logger.info(f"Created working directory: {config.WORKING_DIRECTORY}")
-    
-    logger.info(f"Working directory: {config.WORKING_DIRECTORY}")
-    logger.info(f"Write permission: {os.access(config.WORKING_DIRECTORY, os.W_OK)}")
-    
-    # Test if files can be created/written
-    test_file_path = os.path.join(config.WORKING_DIRECTORY, "test_logging_file.txt")
+
+def _configure_test_logger(log_file: Path, stream: io.StringIO) -> logging.Logger:
+    logger = logging.getLogger("crawl_github_starred.tests.logging")
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+    logger.propagate = False
+
+    formatter = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+
+    stream_handler = logging.StreamHandler(stream)
+    stream_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+    return logger
+
+
+def _teardown_logger(logger: logging.Logger) -> None:
+    for handler in logger.handlers:
+        handler.flush()
+        handler.close()
+    logger.handlers.clear()
+
+
+def test_logging_writes_to_file_and_stream(tmp_path: Path) -> None:
+    log_file = tmp_path / "test.log"
+    stream = io.StringIO()
+
+    logger = _configure_test_logger(log_file, stream)
     try:
-        with open(test_file_path, "w") as f:
-            f.write("Test write successful")
-        logger.info(f"Successfully wrote to test file: {test_file_path}")
-        os.remove(test_file_path)
-        logger.info(f"Successfully removed test file: {test_file_path}")
-    except Exception as e:
-        logger.error(f"Failed to write/remove test file: {e}")
+        logger.info("info-message")
+        logger.warning("warning-message")
+        logger.error("error-message")
+    finally:
+        _teardown_logger(logger)
 
-if __name__ == "__main__":
-    test_logging()
+    file_content = log_file.read_text(encoding="utf-8")
+    assert "INFO:crawl_github_starred.tests.logging:info-message" in file_content
+    assert "WARNING:crawl_github_starred.tests.logging:warning-message" in file_content
+    assert "ERROR:crawl_github_starred.tests.logging:error-message" in file_content
+
+    stream_content = stream.getvalue()
+    assert "INFO:crawl_github_starred.tests.logging:info-message" in stream_content
+    assert "WARNING:crawl_github_starred.tests.logging:warning-message" in stream_content
+    assert "ERROR:crawl_github_starred.tests.logging:error-message" in stream_content

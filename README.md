@@ -121,8 +121,7 @@ PowerShell batch helper:
 ## Testing
 
 ```sh
-uv run python tests/test_logging.py
-uv run python tests/test_stamina_logging.py
+uv run python -m pytest -q
 ```
 
 ## Project Structure

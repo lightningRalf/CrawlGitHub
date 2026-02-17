@@ -67,6 +67,11 @@ def main():
         help="Sync watch candidates into note frontmatter and npm candidate notes.",
     )
     parser.add_argument(
+        "--prune-watch-candidates",
+        action="store_true",
+        help="Archive watch candidates no longer detected during sync (sets watch_status=archived).",
+    )
+    parser.add_argument(
         "--export-watch-seeds",
         type=str,
         default=None,
@@ -111,6 +116,9 @@ def main():
     logger.info(f"Working directory: {config.WORKING_DIRECTORY}")
     logger.info(f"Write permission: {os.access(config.WORKING_DIRECTORY, os.W_OK)}")
 
+    if args.prune_watch_candidates and not args.sync_watch_candidates:
+        logger.warning("--prune-watch-candidates has no effect without --sync-watch-candidates.")
+
     def run_watch_seed_export() -> None:
         export_stats = watchlist_exports.export_watch_seed_files(
             github_output_path=args.export_watch_seeds,
@@ -118,12 +126,15 @@ def main():
             max_npm_lookups=max(0, args.max_npm_lookups),
         )
         logger.info(
-            "Watch seed export: scanned_notes=%s, pi_candidates=%s, repo_candidates=%s, npm_candidates=%s, npm_lookups=%s",
+            "Watch seed export: scanned_notes=%s, pi_candidates=%s, repo_candidates=%s, npm_candidates=%s, npm_lookups=%s, repo_confidence=%s, npm_confidence=%s, signal_sources=%s",
             export_stats.get("scanned_notes"),
             export_stats.get("pi_candidates"),
             export_stats.get("repo_candidates"),
             export_stats.get("npm_candidates"),
             export_stats.get("npm_lookups"),
+            export_stats.get("repo_confidence_counts"),
+            export_stats.get("npm_confidence_counts"),
+            export_stats.get("signal_source_counts"),
         )
         if args.export_watch_seeds:
             logger.info("Wrote GitHub watch seed export: %s", args.export_watch_seeds)
@@ -133,17 +144,26 @@ def main():
     def run_watch_candidate_sync() -> None:
         sync_stats = watchlist_exports.sync_watch_candidates_to_notes(
             max_npm_lookups=max(0, args.max_npm_lookups),
+            prune_missing=args.prune_watch_candidates,
         )
         logger.info(
-            "Watch candidate sync: scanned_notes=%s, repo_candidates=%s, npm_candidates=%s, repo_notes_updated=%s, repo_notes_missing=%s, npm_notes_created=%s, npm_notes_updated=%s, npm_lookups=%s",
+            "Watch candidate sync: scanned_notes=%s, repo_candidates=%s, npm_candidates=%s, repo_notes_updated=%s, repo_notes_missing=%s, repo_notes_reactivated=%s, npm_notes_created=%s, npm_notes_updated=%s, npm_notes_reactivated=%s, archived=%s (repo=%s, npm=%s), npm_lookups=%s, repo_confidence=%s, npm_confidence=%s, signal_sources=%s",
             sync_stats.get("scanned_notes"),
             sync_stats.get("repo_candidates"),
             sync_stats.get("npm_candidates"),
             sync_stats.get("repo_notes_updated"),
             sync_stats.get("repo_notes_missing"),
+            sync_stats.get("repo_notes_reactivated"),
             sync_stats.get("npm_notes_created"),
             sync_stats.get("npm_notes_updated"),
+            sync_stats.get("npm_notes_reactivated"),
+            sync_stats.get("watch_notes_archived_total"),
+            sync_stats.get("repo_notes_archived"),
+            sync_stats.get("npm_notes_archived"),
             sync_stats.get("npm_lookups"),
+            sync_stats.get("repo_confidence_counts"),
+            sync_stats.get("npm_confidence_counts"),
+            sync_stats.get("signal_source_counts"),
         )
 
         if not args.skip_bases:

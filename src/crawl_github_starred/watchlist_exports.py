@@ -87,9 +87,14 @@ WATCH_NOTE_FRONTMATTER_ORDER = [
     "watch_status",
     "watch_owner",
     "watch_tags",
+    "watch_signal_sources",
+    "watch_signal_count",
+    "watch_confidence",
     "watch_why",
     "watch_discovered_at",
     "watch_updated_at",
+    "watch_reactivated_at",
+    "watch_archived_at",
     "title",
     "repo",
     "repo_url",
@@ -197,6 +202,221 @@ def _append_unique(items: list[str], value: str) -> None:
         items.append(value)
 
 
+def _is_truthy(value: Any) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _normalize_watch_seed_id(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def _contains_term(text_lower: str, term: str) -> bool:
+    normalized_term = str(term or "").strip().lower()
+    if not normalized_term:
+        return False
+
+    pattern = re.compile(
+        rf"(?<![a-z0-9]){re.escape(normalized_term)}(?![a-z0-9])",
+        re.IGNORECASE,
+    )
+    return pattern.search(text_lower) is not None
+
+
+_SIGNAL_SOURCE_ORDER = [
+    "topic",
+    "signal",
+    "phrase",
+    "path",
+    "anchor",
+    "derived",
+    "npm-keyword",
+    "other",
+]
+
+_SIGNAL_SOURCE_WEIGHT = {
+    "topic": 3,
+    "signal": 3,
+    "phrase": 2,
+    "path": 2,
+    "anchor": 2,
+    "derived": 1,
+    "npm-keyword": 2,
+    "other": 1,
+}
+
+
+def _split_semicolon_values(value: Any) -> list[str]:
+    raw_text = str(value or "")
+    parts = [part.strip() for part in raw_text.split(";")]
+    return [part for part in parts if part]
+
+
+def _normalize_reason_fragments(value: Any) -> list[str]:
+    fragments: list[str] = []
+
+    if isinstance(value, list):
+        for item in value:
+            cleaned = str(item).strip()
+            if cleaned:
+                _append_unique(fragments, cleaned)
+        return fragments
+
+    for fragment in _split_semicolon_values(value):
+        _append_unique(fragments, fragment)
+    return fragments
+
+
+def _reason_source(reason: str) -> str:
+    cleaned = str(reason or "").strip().lower()
+    if cleaned.startswith("topic:"):
+        return "topic"
+    if cleaned.startswith("signal:"):
+        return "signal"
+    if cleaned.startswith("phrase:"):
+        return "phrase"
+    if cleaned.startswith("readme-path:"):
+        return "path"
+    if cleaned.startswith("repo:") or cleaned.startswith("repo-name:"):
+        return "anchor"
+    if cleaned.startswith("derived-from:"):
+        return "derived"
+    if cleaned.startswith("npm-keyword:"):
+        return "npm-keyword"
+    return "other"
+
+
+def _signal_sources_from_reasons(reasons: list[str]) -> list[str]:
+    sources: list[str] = []
+    for reason in reasons:
+        _append_unique(sources, _reason_source(reason))
+
+    ordered: list[str] = []
+    for source in _SIGNAL_SOURCE_ORDER:
+        if source in sources:
+            ordered.append(source)
+
+    for source in sources:
+        if source not in ordered:
+            ordered.append(source)
+
+    return ordered
+
+
+def _watch_confidence(tags: list[str], reasons: list[str]) -> str:
+    sources = _signal_sources_from_reasons(reasons)
+    score = sum(_SIGNAL_SOURCE_WEIGHT.get(source, 1) for source in sources)
+
+    non_source_tags = [
+        tag
+        for tag in tags
+        if not str(tag).strip().lower().startswith("source/")
+    ]
+    if len(set(non_source_tags)) >= 2:
+        score += 1
+
+    if score >= 5:
+        return "high"
+    if score >= 2:
+        return "medium"
+    return "low"
+
+
+def _candidate_reason_fragments(candidate: dict[str, Any]) -> list[str]:
+    reasons = _normalize_reason_fragments(candidate.get("signalReasons"))
+    if reasons:
+        return reasons
+    return _normalize_reason_fragments(candidate.get("whyWatch"))
+
+
+def _candidate_signal_sources(candidate: dict[str, Any], reasons: list[str]) -> list[str]:
+    provided = candidate.get("signalSources")
+    provided_sources: list[str] = []
+
+    if isinstance(provided, list):
+        for source in provided:
+            cleaned = str(source).strip().lower()
+            if cleaned:
+                _append_unique(provided_sources, cleaned)
+    else:
+        for source in str(provided or "").split(","):
+            cleaned = source.strip().lower()
+            if cleaned:
+                _append_unique(provided_sources, cleaned)
+
+    if provided_sources:
+        ordered: list[str] = []
+        for source in _SIGNAL_SOURCE_ORDER:
+            if source in provided_sources:
+                ordered.append(source)
+
+        for source in provided_sources:
+            if source not in ordered:
+                ordered.append(source)
+
+        return ordered
+
+    return _signal_sources_from_reasons(reasons)
+
+
+def _populate_signal_metadata(candidate: dict[str, Any]) -> None:
+    reasons = _candidate_reason_fragments(candidate)
+    if not reasons:
+        fallback = str(candidate.get("whyWatch") or "").strip()
+        if fallback:
+            reasons = [fallback]
+
+    tags = [str(tag).strip() for tag in candidate.get("tags", []) if str(tag).strip()]
+    sources = _candidate_signal_sources(candidate, reasons)
+
+    provided_confidence = str(candidate.get("confidence") or "").strip().lower()
+    if provided_confidence not in {"low", "medium", "high"}:
+        provided_confidence = ""
+
+    candidate["signalReasons"] = reasons
+    candidate["signalSources"] = sources
+    candidate["signalCount"] = len(reasons)
+    candidate["confidence"] = provided_confidence or _watch_confidence(tags, reasons)
+    candidate["whyWatch"] = "; ".join(reasons) if reasons else ""
+
+
+def _confidence_counts(candidates: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {"high": 0, "medium": 0, "low": 0}
+
+    for candidate in candidates:
+        reasons = _candidate_reason_fragments(candidate)
+        tags = [str(tag).strip() for tag in candidate.get("tags", []) if str(tag).strip()]
+
+        confidence = str(candidate.get("confidence") or "").strip().lower()
+        if confidence not in counts:
+            confidence = _watch_confidence(tags, reasons)
+
+        counts[confidence] = counts.get(confidence, 0) + 1
+
+    return {key: value for key, value in counts.items() if value > 0}
+
+
+def _signal_source_counts(candidates: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+
+    for candidate in candidates:
+        reasons = _candidate_reason_fragments(candidate)
+        sources = _candidate_signal_sources(candidate, reasons)
+
+        for source in sources:
+            counts[source] = counts.get(source, 0) + 1
+
+    ordered_sources: list[str] = []
+    for source in _SIGNAL_SOURCE_ORDER:
+        if source in counts:
+            ordered_sources.append(source)
+
+    for source in sorted(counts):
+        if source not in ordered_sources:
+            ordered_sources.append(source)
+
+    return {source: counts[source] for source in ordered_sources}
+
+
 def _split_topics(raw_topics: str) -> list[str]:
     topics: list[str] = []
     for topic in str(raw_topics or "").split(","):
@@ -206,23 +426,20 @@ def _split_topics(raw_topics: str) -> list[str]:
     return topics
 
 
-def _looks_like_pi_anchor(frontmatter: dict[str, str], combined_text_lower: str) -> str | None:
+def _looks_like_pi_anchor(frontmatter: dict[str, str]) -> str | None:
+    """Return a strong repository-identity anchor for the Pi ecosystem.
+
+    This intentionally stays conservative to avoid broad false positives from
+    generic "...-pi-..." repository names.
+    """
     repo_name = str(frontmatter.get("repo_name") or "").strip().lower()
     repo_full_name = str(frontmatter.get("repo") or "").strip().lower()
-    topics = _split_topics(str(frontmatter.get("topics") or ""))
 
-    if repo_name and re.search(r"(?:^|-)pi(?:-|$)", repo_name):
+    if repo_name == "pi":
         return f"repo-name:{repo_name}"
 
-    if repo_full_name and (repo_full_name.endswith("/pi") or "/pi-" in repo_full_name):
+    if repo_full_name.endswith("/pi"):
         return f"repo:{repo_full_name}"
-
-    for topic in topics:
-        if topic.startswith("pi-"):
-            return f"topic:{topic}"
-
-    if " pi-" in f" {combined_text_lower}" and "pi-" in combined_text_lower:
-        return "text:pi-*"
 
     return None
 
@@ -236,16 +453,18 @@ def _classify_repo_candidate(
     reasons: list[str] = []
 
     topics = _split_topics(str(frontmatter.get("topics") or ""))
-    combined_text = "\n".join(
+
+    frontmatter_text = "\n".join(
         [
             str(frontmatter.get("repo") or ""),
             str(frontmatter.get("repo_name") or ""),
             str(frontmatter.get("repo_description") or ""),
             str(frontmatter.get("topics") or ""),
-            body,
-            readme_text,
         ]
     )
+    frontmatter_text_lower = frontmatter_text.lower()
+
+    combined_text = "\n".join([frontmatter_text, body, readme_text])
     combined_text_lower = combined_text.lower()
 
     for topic in topics:
@@ -256,16 +475,17 @@ def _classify_repo_candidate(
         _append_unique(reasons, f"topic:{topic}")
 
     for marker, tag in PI_MARKER_TO_TAG.items():
-        if marker in combined_text_lower:
+        if _contains_term(frontmatter_text_lower, marker):
             _append_unique(tags, tag)
             _append_unique(reasons, f"signal:{marker}")
 
     for phrase, tag in PI_PHRASE_TO_TAG.items():
-        if phrase in combined_text_lower:
+        source_text = combined_text_lower if phrase == "pi coding agent" else frontmatter_text_lower
+        if _contains_term(source_text, phrase):
             _append_unique(tags, tag)
             _append_unique(reasons, f"phrase:{phrase}")
 
-    pi_anchor_reason = _looks_like_pi_anchor(frontmatter, combined_text_lower)
+    pi_anchor_reason = _looks_like_pi_anchor(frontmatter)
 
     for tag, pattern, reason in PATH_SIGNAL_PATTERNS:
         if pattern.search(readme_text):
@@ -371,6 +591,7 @@ def _as_repo_candidate(
     repo_name = str(frontmatter.get("repo") or "").strip() or _guess_repo_from_url(repo_url)
     title = repo_name or str(frontmatter.get("repo_name") or "").strip() or note_stem
 
+    normalized_reasons = _normalize_reason_fragments(reasons)
     payload: dict[str, Any] = {
         "id": _format_repo_id(repo_name, repo_url, note_stem),
         "type": "repo",
@@ -378,7 +599,8 @@ def _as_repo_candidate(
         "title": title,
         "starred": True,
         "tags": sorted({*tags, "source/github-starred"}),
-        "whyWatch": "; ".join(reasons) if reasons else "pi-related repository signal",
+        "whyWatch": "; ".join(normalized_reasons) if normalized_reasons else "pi-related repository signal",
+        "signalReasons": normalized_reasons,
         "status": "new",
         "owner": "you",
         "discoveredAt": _normalize_discovered_at(frontmatter, fallback_discovered_at),
@@ -390,6 +612,7 @@ def _as_repo_candidate(
         payload["repoUrl"] = repo_url
 
     payload["repoNote"] = note_stem
+    _populate_signal_metadata(payload)
     return payload
 
 
@@ -397,6 +620,7 @@ def _merge_repo_candidate(store: dict[str, dict[str, Any]], candidate: dict[str,
     candidate_id = str(candidate["id"])
     existing = store.get(candidate_id)
     if existing is None:
+        _populate_signal_metadata(candidate)
         store[candidate_id] = candidate
         return
 
@@ -404,13 +628,18 @@ def _merge_repo_candidate(store: dict[str, dict[str, Any]], candidate: dict[str,
     existing_tags.update(candidate.get("tags", []))
     existing["tags"] = sorted(existing_tags)
 
-    existing_why = str(existing.get("whyWatch", "")).strip()
-    new_why = str(candidate.get("whyWatch", "")).strip()
-    if new_why and new_why not in existing_why:
-        if existing_why:
-            existing["whyWatch"] = f"{existing_why}; {new_why}"
-        else:
-            existing["whyWatch"] = new_why
+    merged_reasons = _candidate_reason_fragments(existing)
+    for reason in _candidate_reason_fragments(candidate):
+        _append_unique(merged_reasons, reason)
+    existing["signalReasons"] = merged_reasons
+
+    merged_sources = _candidate_signal_sources(existing, merged_reasons)
+    for source in _candidate_signal_sources(candidate, _candidate_reason_fragments(candidate)):
+        _append_unique(merged_sources, source)
+    existing["signalSources"] = merged_sources
+
+    existing["confidence"] = ""
+    _populate_signal_metadata(existing)
 
 
 def _normalize_package_token(token: str) -> str | None:
@@ -485,6 +714,7 @@ def _as_npm_candidate(
     repo_id = str(repo_candidate.get("id", ""))
     base_tags = [tag for tag in repo_candidate.get("tags", []) if tag != "source/github-starred"]
 
+    reason_fragment = f"derived-from:{repo_title}"
     payload: dict[str, Any] = {
         "id": f"npm:{package_name.lower()}",
         "type": "npm",
@@ -492,7 +722,8 @@ def _as_npm_candidate(
         "title": package_name,
         "starred": False,
         "tags": sorted({*base_tags, "source/npm"}),
-        "whyWatch": f"derived-from:{repo_title}",
+        "whyWatch": reason_fragment,
+        "signalReasons": [reason_fragment],
         "status": "new",
         "owner": "you",
         "discoveredAt": fallback_discovered_at,
@@ -507,6 +738,7 @@ def _as_npm_candidate(
     if repo_id:
         payload["fromRepoIds"] = [repo_id]
 
+    _populate_signal_metadata(payload)
     return payload
 
 
@@ -514,6 +746,7 @@ def _merge_npm_candidate(store: dict[str, dict[str, Any]], candidate: dict[str, 
     candidate_id = str(candidate["id"])
     existing = store.get(candidate_id)
     if existing is None:
+        _populate_signal_metadata(candidate)
         store[candidate_id] = candidate
         return
 
@@ -534,15 +767,23 @@ def _merge_npm_candidate(store: dict[str, dict[str, Any]], candidate: dict[str, 
     if from_repo_ids:
         existing["fromRepoIds"] = from_repo_ids
 
-    existing_why = str(existing.get("whyWatch", "")).strip()
+    merged_reasons = _candidate_reason_fragments(existing)
+    for reason in _candidate_reason_fragments(candidate):
+        _append_unique(merged_reasons, reason)
+
     for repo in candidate.get("fromRepos", []):
         fragment = f"derived-from:{repo}"
-        if fragment not in existing_why:
-            if existing_why:
-                existing_why = f"{existing_why}; {fragment}"
-            else:
-                existing_why = fragment
-    existing["whyWatch"] = existing_why
+        _append_unique(merged_reasons, fragment)
+
+    existing["signalReasons"] = merged_reasons
+
+    merged_sources = _candidate_signal_sources(existing, merged_reasons)
+    for source in _candidate_signal_sources(candidate, _candidate_reason_fragments(candidate)):
+        _append_unique(merged_sources, source)
+    existing["signalSources"] = merged_sources
+
+    existing["confidence"] = ""
+    _populate_signal_metadata(existing)
 
 
 def _extract_npm_keywords(payload: dict[str, Any], latest_version_payload: dict[str, Any]) -> list[str]:
@@ -591,7 +832,7 @@ def _apply_npm_metadata(candidate: dict[str, Any], payload: dict[str, Any]) -> N
         candidate["npmKeywords"] = keywords
 
     tags = set(candidate.get("tags", []))
-    why_watch = str(candidate.get("whyWatch", "")).strip()
+    reason_fragments = _candidate_reason_fragments(candidate)
 
     for keyword in keywords:
         tag = PI_MARKER_TO_TAG.get(keyword)
@@ -600,15 +841,12 @@ def _apply_npm_metadata(candidate: dict[str, Any], payload: dict[str, Any]) -> N
 
         tags.add(tag)
         fragment = f"npm-keyword:{keyword}"
-        if fragment not in why_watch:
-            if why_watch:
-                why_watch = f"{why_watch}; {fragment}"
-            else:
-                why_watch = fragment
+        _append_unique(reason_fragments, fragment)
 
     candidate["tags"] = sorted(tags)
-    if why_watch:
-        candidate["whyWatch"] = why_watch
+    candidate["signalReasons"] = reason_fragments
+    candidate["confidence"] = ""
+    _populate_signal_metadata(candidate)
 
 
 def _enrich_npm_candidates(candidates: list[dict[str, Any]], max_npm_lookups: int) -> int:
@@ -786,6 +1024,20 @@ def _npm_candidate_relative_path(candidate: dict[str, Any]) -> str:
     return os.path.join(config.WATCH_CANDIDATES_SUBDIR, filename).replace("\\", "/")
 
 
+def _iter_watch_candidate_npm_note_paths() -> list[str]:
+    watch_dir = os.path.join(config.WORKING_DIRECTORY, config.WATCH_CANDIDATES_SUBDIR)
+    if not os.path.isdir(watch_dir):
+        return []
+
+    paths: list[str] = []
+    for filename in sorted(os.listdir(watch_dir)):
+        if not filename.lower().endswith(".md"):
+            continue
+        paths.append(os.path.join(watch_dir, filename))
+
+    return paths
+
+
 def _as_joined_csv(values: Any) -> str:
     if not isinstance(values, list):
         return ""
@@ -793,40 +1045,68 @@ def _as_joined_csv(values: Any) -> str:
     return ", ".join(cleaned)
 
 
-def _upsert_repo_candidate_note(candidate: dict[str, Any], now_iso: str) -> tuple[bool, bool]:
+def _as_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _upsert_repo_candidate_note(candidate: dict[str, Any], now_iso: str) -> tuple[bool, bool, bool]:
     note_path = _repo_note_path_from_candidate(candidate)
     if not note_path:
-        return False, True
+        return False, True, False
 
     if not os.path.exists(note_path):
         logger.warning("Repo candidate note not found: %s", note_path)
-        return False, True
+        return False, True, False
 
     try:
         content = _read_text(note_path)
     except OSError:
         logger.warning("Failed to read repo candidate note: %s", note_path)
-        return False, True
+        return False, True, False
 
     frontmatter, body = _parse_frontmatter(content)
     updated = dict(frontmatter)
+
+    signal_reasons = _candidate_reason_fragments(candidate)
+    signal_sources = _candidate_signal_sources(candidate, signal_reasons)
+    reason_text = "; ".join(signal_reasons) if signal_reasons else str(candidate.get("whyWatch") or "")
+    candidate_tags = [str(tag).strip() for tag in candidate.get("tags", []) if str(tag).strip()]
+
+    confidence = str(candidate.get("confidence") or "").strip().lower()
+    if confidence not in {"low", "medium", "high"}:
+        confidence = _watch_confidence(candidate_tags, signal_reasons)
+
+    signal_count = _as_int(candidate.get("signalCount"), len(signal_reasons))
 
     updated["watch_candidate"] = "true"
     updated["watch_type"] = "repo"
     updated["watch_seed_id"] = str(candidate.get("id") or "")
     updated["watch_tags"] = _as_joined_csv(candidate.get("tags"))
-    updated["watch_why"] = str(candidate.get("whyWatch") or "")
+    updated["watch_signal_sources"] = _as_joined_csv(signal_sources)
+    updated["watch_signal_count"] = signal_count
+    updated["watch_confidence"] = confidence
+    updated["watch_why"] = reason_text
     updated["watch_discovered_at"] = str(candidate.get("discoveredAt") or now_iso)
     updated["watch_updated_at"] = now_iso
 
-    if not str(updated.get("watch_status") or "").strip():
+    was_archived = str(frontmatter.get("watch_status") or "").strip().lower() == "archived"
+    if was_archived:
         updated["watch_status"] = "new"
+        updated["watch_reactivated_at"] = now_iso
+        if "watch_archived_at" in updated:
+            updated["watch_archived_at"] = ""
+    elif not str(updated.get("watch_status") or "").strip():
+        updated["watch_status"] = "new"
+
     if not str(updated.get("watch_owner") or "").strip():
         updated["watch_owner"] = str(candidate.get("owner") or "you")
 
     rewritten = _render_frontmatter(updated) + body.lstrip("\n")
     changed = _write_text_if_changed(note_path, rewritten)
-    return changed, False
+    return changed, False, was_archived and changed
 
 
 def _default_npm_candidate_body(candidate: dict[str, Any], note_stem: str) -> str:
@@ -857,7 +1137,7 @@ def _default_npm_candidate_body(candidate: dict[str, Any], note_stem: str) -> st
     return "\n".join(lines)
 
 
-def _upsert_npm_candidate_note(candidate: dict[str, Any], now_iso: str) -> tuple[bool, bool]:
+def _upsert_npm_candidate_note(candidate: dict[str, Any], now_iso: str) -> tuple[bool, bool, bool]:
     relative_path = _npm_candidate_relative_path(candidate)
     absolute_path = os.path.join(config.WORKING_DIRECTORY, relative_path)
     existed_before = os.path.exists(absolute_path)
@@ -876,13 +1156,27 @@ def _upsert_npm_candidate_note(candidate: dict[str, Any], now_iso: str) -> tuple
     title = str(candidate.get("title") or candidate.get("package") or "npm-candidate")
     package_name = str(candidate.get("package") or title)
 
+    signal_reasons = _candidate_reason_fragments(candidate)
+    signal_sources = _candidate_signal_sources(candidate, signal_reasons)
+    reason_text = "; ".join(signal_reasons) if signal_reasons else str(candidate.get("whyWatch") or "")
+    candidate_tags = [str(tag).strip() for tag in candidate.get("tags", []) if str(tag).strip()]
+
+    confidence = str(candidate.get("confidence") or "").strip().lower()
+    if confidence not in {"low", "medium", "high"}:
+        confidence = _watch_confidence(candidate_tags, signal_reasons)
+
+    signal_count = _as_int(candidate.get("signalCount"), len(signal_reasons))
+
     updated["type"] = "watch_candidate"
     updated["source"] = "watch-seed"
     updated["watch_candidate"] = "true"
     updated["watch_type"] = "npm"
     updated["watch_seed_id"] = str(candidate.get("id") or "")
     updated["watch_tags"] = _as_joined_csv(candidate.get("tags"))
-    updated["watch_why"] = str(candidate.get("whyWatch") or "")
+    updated["watch_signal_sources"] = _as_joined_csv(signal_sources)
+    updated["watch_signal_count"] = signal_count
+    updated["watch_confidence"] = confidence
+    updated["watch_why"] = reason_text
     updated["watch_discovered_at"] = str(candidate.get("discoveredAt") or now_iso)
     updated["watch_updated_at"] = now_iso
     updated["title"] = title
@@ -900,8 +1194,15 @@ def _upsert_npm_candidate_note(candidate: dict[str, Any], now_iso: str) -> tuple
     if from_repo_ids_csv:
         updated["from_repo_ids"] = from_repo_ids_csv
 
-    if not str(updated.get("watch_status") or "").strip():
+    was_archived = str(frontmatter.get("watch_status") or "").strip().lower() == "archived"
+    if was_archived:
         updated["watch_status"] = "new"
+        updated["watch_reactivated_at"] = now_iso
+        if "watch_archived_at" in updated:
+            updated["watch_archived_at"] = ""
+    elif not str(updated.get("watch_status") or "").strip():
+        updated["watch_status"] = "new"
+
     if not str(updated.get("watch_owner") or "").strip():
         updated["watch_owner"] = str(candidate.get("owner") or "you")
 
@@ -913,7 +1214,99 @@ def _upsert_npm_candidate_note(candidate: dict[str, Any], now_iso: str) -> tuple
 
     created = changed and not existed_before
     updated_existing = changed and existed_before
-    return created, updated_existing
+    reactivated = was_archived and changed
+    return created, updated_existing, reactivated
+
+
+def _archive_watch_candidate_note(
+    note_path: str,
+    frontmatter: dict[str, str],
+    body: str,
+    now_iso: str,
+    key_order: list[str] | None = None,
+) -> bool:
+    if str(frontmatter.get("watch_status") or "").strip().lower() == "archived":
+        return False
+
+    updated = dict(frontmatter)
+    updated["watch_status"] = "archived"
+    updated["watch_updated_at"] = now_iso
+    updated["watch_archived_at"] = now_iso
+
+    rewritten = _render_frontmatter(updated, key_order=key_order) + body.lstrip("\n")
+    return _write_text_if_changed(note_path, rewritten)
+
+
+def _archive_missing_watch_candidates(active_seed_ids: set[str], now_iso: str) -> dict[str, int]:
+    repo_notes_archived = 0
+    npm_notes_archived = 0
+
+    for note_path in _iter_repo_note_paths():
+        try:
+            content = _read_text(note_path)
+        except OSError:
+            logger.warning("Failed to read repo note for watch pruning: %s", note_path)
+            continue
+
+        frontmatter, body = _parse_frontmatter(content)
+
+        if not _is_truthy(frontmatter.get("watch_candidate")):
+            continue
+
+        watch_seed_id = _normalize_watch_seed_id(frontmatter.get("watch_seed_id"))
+        if not watch_seed_id:
+            continue
+
+        watch_type = str(frontmatter.get("watch_type") or "").strip().lower()
+        if watch_type and watch_type != "repo":
+            continue
+        if not watch_type and not watch_seed_id.startswith("github:"):
+            continue
+
+        if watch_seed_id in active_seed_ids:
+            continue
+
+        if _archive_watch_candidate_note(note_path, frontmatter, body, now_iso):
+            repo_notes_archived += 1
+
+    for note_path in _iter_watch_candidate_npm_note_paths():
+        try:
+            content = _read_text(note_path)
+        except OSError:
+            logger.warning("Failed to read npm candidate note for watch pruning: %s", note_path)
+            continue
+
+        frontmatter, body = _parse_frontmatter(content)
+
+        if not _is_truthy(frontmatter.get("watch_candidate")):
+            continue
+
+        watch_seed_id = _normalize_watch_seed_id(frontmatter.get("watch_seed_id"))
+        if not watch_seed_id:
+            continue
+
+        watch_type = str(frontmatter.get("watch_type") or "").strip().lower()
+        if watch_type and watch_type != "npm":
+            continue
+        if not watch_type and not watch_seed_id.startswith("npm:"):
+            continue
+
+        if watch_seed_id in active_seed_ids:
+            continue
+
+        if _archive_watch_candidate_note(
+            note_path,
+            frontmatter,
+            body,
+            now_iso,
+            key_order=WATCH_NOTE_FRONTMATTER_ORDER,
+        ):
+            npm_notes_archived += 1
+
+    return {
+        "repo_notes_archived": repo_notes_archived,
+        "npm_notes_archived": npm_notes_archived,
+    }
 
 
 def export_watch_seed_files(
@@ -943,16 +1336,23 @@ def export_watch_seed_files(
         "repo_candidates": len(repo_candidates),
         "npm_candidates": len(npm_candidates),
         "npm_lookups": int(collected.get("npm_lookups", 0)),
+        "repo_confidence_counts": _confidence_counts(repo_candidates),
+        "npm_confidence_counts": _confidence_counts(npm_candidates),
+        "signal_source_counts": _signal_source_counts([*repo_candidates, *npm_candidates]),
         "github_output_path": github_output_path,
         "npm_output_path": npm_output_path,
     }
 
 
-def sync_watch_candidates_to_notes(max_npm_lookups: int = 0) -> dict[str, Any]:
+def sync_watch_candidates_to_notes(
+    max_npm_lookups: int = 0,
+    prune_missing: bool = False,
+) -> dict[str, Any]:
     """Sync watch candidates into Obsidian notes/frontmatter.
 
     - Repo candidates are synced into existing repo notes.
     - npm candidates are synced into dedicated notes under ``WATCH_CANDIDATES_SUBDIR``.
+    - Optional pruning archives stale watch candidates (`watch_status: archived`).
     """
     collected = _collect_watch_seed_candidates(max_npm_lookups=max_npm_lookups)
     repo_candidates = list(collected.get("repo_candidates", []))
@@ -962,23 +1362,45 @@ def sync_watch_candidates_to_notes(max_npm_lookups: int = 0) -> dict[str, Any]:
 
     repo_notes_updated = 0
     repo_notes_missing = 0
+    repo_notes_reactivated = 0
 
     for candidate in repo_candidates:
-        changed, missing = _upsert_repo_candidate_note(candidate, now_iso)
+        changed, missing, reactivated = _upsert_repo_candidate_note(candidate, now_iso)
         if missing:
             repo_notes_missing += 1
         if changed:
             repo_notes_updated += 1
+        if reactivated:
+            repo_notes_reactivated += 1
 
     npm_notes_created = 0
     npm_notes_updated = 0
+    npm_notes_reactivated = 0
 
     for candidate in npm_candidates:
-        created, updated = _upsert_npm_candidate_note(candidate, now_iso)
+        created, updated, reactivated = _upsert_npm_candidate_note(candidate, now_iso)
         if created:
             npm_notes_created += 1
         elif updated:
             npm_notes_updated += 1
+        if reactivated:
+            npm_notes_reactivated += 1
+
+    repo_notes_archived = 0
+    npm_notes_archived = 0
+
+    if prune_missing:
+        active_seed_ids = {
+            seed_id
+            for seed_id in (
+                _normalize_watch_seed_id(candidate.get("id"))
+                for candidate in [*repo_candidates, *npm_candidates]
+            )
+            if seed_id
+        }
+        prune_stats = _archive_missing_watch_candidates(active_seed_ids=active_seed_ids, now_iso=now_iso)
+        repo_notes_archived = int(prune_stats.get("repo_notes_archived", 0))
+        npm_notes_archived = int(prune_stats.get("npm_notes_archived", 0))
 
     return {
         "scanned_notes": int(collected.get("scanned_notes", 0)),
@@ -986,9 +1408,18 @@ def sync_watch_candidates_to_notes(max_npm_lookups: int = 0) -> dict[str, Any]:
         "repo_candidates": len(repo_candidates),
         "npm_candidates": len(npm_candidates),
         "npm_lookups": int(collected.get("npm_lookups", 0)),
+        "repo_confidence_counts": _confidence_counts(repo_candidates),
+        "npm_confidence_counts": _confidence_counts(npm_candidates),
+        "signal_source_counts": _signal_source_counts([*repo_candidates, *npm_candidates]),
         "repo_notes_updated": repo_notes_updated,
         "repo_notes_missing": repo_notes_missing,
+        "repo_notes_reactivated": repo_notes_reactivated,
         "npm_notes_created": npm_notes_created,
         "npm_notes_updated": npm_notes_updated,
+        "npm_notes_reactivated": npm_notes_reactivated,
+        "repo_notes_archived": repo_notes_archived,
+        "npm_notes_archived": npm_notes_archived,
+        "watch_notes_archived_total": repo_notes_archived + npm_notes_archived,
+        "prune_watch_candidates": prune_missing,
         "watch_candidates_subdir": config.WATCH_CANDIDATES_SUBDIR,
     }

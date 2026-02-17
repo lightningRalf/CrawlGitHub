@@ -81,18 +81,6 @@ WATCH_CANDIDATES_BASE_CONTENT = """filters:
     - 'watch_candidate == "true"'
 views:
   - type: table
-    name: Watch candidates
-    order:
-      - file.name
-      - watch_type
-      - watch_status
-      - watch_tags
-      - watch_why
-      - watch_updated_at
-      - repo
-      - package
-      - repo_url
-  - type: table
     name: Needs triage
     filters:
       and:
@@ -101,26 +89,90 @@ views:
             - 'watch_status == "new"'
             - 'watch_status == "inbox"'
     order:
+      - watch_updated_at
       - file.name
       - watch_type
+      - watch_owner
+      - watch_confidence
+      - watch_signal_sources
+      - watch_signal_count
       - watch_tags
       - watch_why
       - watch_discovered_at
+      - repo
+      - package
+  - type: table
+    name: Active watch candidates
+    filters:
+      and:
+        - 'watch_candidate == "true"'
+        - 'watch_status != "archived"'
+    order:
       - watch_updated_at
+      - file.name
+      - watch_type
+      - watch_status
+      - watch_owner
+      - watch_confidence
+      - watch_signal_sources
+      - watch_signal_count
+      - watch_tags
+      - watch_why
+      - repo
+      - package
+      - repo_url
+  - type: table
+    name: Reactivated
+    filters:
+      and:
+        - 'watch_candidate == "true"'
+        - 'watch_status != "archived"'
+        - 'watch_reactivated_at != ""'
+    order:
+      - watch_reactivated_at
+      - file.name
+      - watch_type
+      - watch_status
+      - watch_confidence
+      - watch_signal_sources
+      - watch_signal_count
+      - watch_tags
+      - watch_why
   - type: table
     name: npm candidates
     filters:
       and:
         - 'watch_candidate == "true"'
         - 'watch_type == "npm"'
+        - 'watch_status != "archived"'
     order:
+      - watch_updated_at
       - file.name
       - package
       - watch_status
+      - watch_confidence
+      - watch_signal_sources
+      - watch_signal_count
       - watch_tags
       - watch_why
       - from_repos
       - repo_url
+  - type: table
+    name: Archived
+    filters:
+      and:
+        - 'watch_candidate == "true"'
+        - 'watch_status == "archived"'
+    order:
+      - watch_archived_at
+      - watch_updated_at
+      - file.name
+      - watch_type
+      - watch_confidence
+      - watch_signal_sources
+      - watch_signal_count
+      - watch_tags
+      - watch_why
 """
 
 

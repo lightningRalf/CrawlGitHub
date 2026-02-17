@@ -19,6 +19,9 @@ Fetches starred repositories for a configured GitHub user (defaults to `lightnin
 - Watchlist seed exports for pi extension scouting:
   - GitHub candidates JSONL
   - npm candidates JSONL (optional bounded npm enrichment)
+- Watch candidate lifecycle sync can archive stale candidates (`watch_status: archived`) with `--prune-watch-candidates` and tracks reactivation/archive timestamps
+- Watch heuristics use boundary-aware marker matching, frontmatter-weighted phrase signals, and conservative repo anchors to reduce false positives
+- Synced watch notes include explainability fields (`watch_signal_sources`, `watch_signal_count`, `watch_confidence`) for clearer Bases triage
 - Deduplicated `23.03.01_CrawlGitHubURLs.md` maintenance section
 - Cached API responses (ETag/Last-Modified) in `tools/cache`
 - Retry logic with `stamina`
@@ -82,6 +85,7 @@ PowerShell wrapper:
 - `--max-readme-updates 20`
 - `--skip-bases`
 - `--sync-watch-candidates`
+- `--prune-watch-candidates`
 - `--export-watch-seeds docs/exports/extensions-watch-seeds.github.jsonl`
 - `--export-npm-seeds docs/exports/extensions-watch-seeds.npm.jsonl`
 - `--max-npm-lookups 10`
@@ -97,6 +101,12 @@ Example (sync watch candidates directly into Obsidian notes + WatchCandidates ba
 
 ```sh
 uv run crawl-github --export-seeds-only --sync-watch-candidates --max-npm-lookups 0
+```
+
+Example (sync + archive candidates no longer detected):
+
+```sh
+uv run crawl-github --export-seeds-only --sync-watch-candidates --prune-watch-candidates --max-npm-lookups 0
 ```
 
 Example (export watchlist seeds from local notes, no npm API enrichment):

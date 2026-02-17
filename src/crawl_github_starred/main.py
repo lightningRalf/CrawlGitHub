@@ -5,8 +5,8 @@ import logging
 import os
 import sys
 
-from . import config
 from . import bases_files
+from . import config
 from . import github_api
 from . import repo_info
 from . import starred_repos_file
@@ -51,8 +51,48 @@ def _write_watch_telemetry(event_type: str, stats: dict[str, object]) -> str | N
     return path
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Fetch starred GitHub repos and update notes.")
+def _add_watch_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--skip-bases",
+        action="store_true",
+        help="Do not regenerate Obsidian .base files.",
+    )
+    parser.add_argument(
+        "--sync-watch-candidates",
+        action="store_true",
+        help="Sync watch candidates into note frontmatter and npm candidate notes.",
+    )
+    parser.add_argument(
+        "--prune-watch-candidates",
+        action="store_true",
+        help="Archive watch candidates no longer detected during sync (sets watch_status=archived).",
+    )
+    parser.add_argument(
+        "--export-watch-seeds",
+        type=str,
+        default=None,
+        help="Optional JSONL path for GitHub watchlist seed export.",
+    )
+    parser.add_argument(
+        "--export-npm-seeds",
+        type=str,
+        default=None,
+        help="Optional JSONL path for npm watchlist seed export.",
+    )
+    parser.add_argument(
+        "--max-npm-lookups",
+        type=int,
+        default=0,
+        help="Optional cap for npm metadata enrichment requests (default: 0).",
+    )
+    parser.add_argument(
+        "--export-seeds-only",
+        action="store_true",
+        help="Only export watch seeds from local notes (no GitHub API calls).",
+    )
+
+
+def _add_crawl_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--skip-existing",
         action="store_true",
@@ -95,45 +135,67 @@ def main():
         default=config.MAX_README_UPDATES_PER_RUN,
         help="Maximum README snapshot updates per run.",
     )
-    parser.add_argument(
-        "--skip-bases",
-        action="store_true",
-        help="Do not regenerate Obsidian .base files.",
+
+    _add_watch_arguments(parser)
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Fetch starred GitHub repos and update notes.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    crawl_parser = subparsers.add_parser(
+        "crawl",
+        help="Run the full crawl workflow (default when no command is provided).",
     )
-    parser.add_argument(
-        "--sync-watch-candidates",
-        action="store_true",
-        help="Sync watch candidates into note frontmatter and npm candidate notes.",
+    _add_crawl_arguments(crawl_parser)
+
+    watch_parser = subparsers.add_parser(
+        "watch",
+        help="Run local-only watch workflows.",
     )
-    parser.add_argument(
-        "--prune-watch-candidates",
-        action="store_true",
-        help="Archive watch candidates no longer detected during sync (sets watch_status=archived).",
+    watch_subparsers = watch_parser.add_subparsers(dest="watch_command", required=True)
+
+    watch_sync_parser = watch_subparsers.add_parser(
+        "sync",
+        help="Sync watch candidates into notes/frontmatter.",
     )
-    parser.add_argument(
-        "--export-watch-seeds",
-        type=str,
-        default=None,
-        help="Optional JSONL path for GitHub watchlist seed export.",
+    _add_watch_arguments(watch_sync_parser)
+
+    watch_export_parser = watch_subparsers.add_parser(
+        "export",
+        help="Export watch seeds from local notes.",
     )
-    parser.add_argument(
-        "--export-npm-seeds",
-        type=str,
-        default=None,
-        help="Optional JSONL path for npm watchlist seed export.",
-    )
-    parser.add_argument(
-        "--max-npm-lookups",
-        type=int,
-        default=0,
-        help="Optional cap for npm metadata enrichment requests (default: 0).",
-    )
-    parser.add_argument(
-        "--export-seeds-only",
-        action="store_true",
-        help="Only export watch seeds from local notes (no GitHub API calls).",
-    )
-    args = parser.parse_args()
+    _add_watch_arguments(watch_export_parser)
+
+    return parser
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    parser = _build_parser()
+
+    if raw_argv in (["-h"], ["--help"]):
+        parser.parse_args(raw_argv)
+
+    explicit_command = bool(raw_argv) and raw_argv[0] in {"crawl", "watch"}
+    argv_to_parse = raw_argv if explicit_command else ["crawl", *raw_argv]
+
+    args = parser.parse_args(argv_to_parse)
+
+    if not hasattr(args, "watch_command"):
+        args.watch_command = None
+
+    if args.command == "watch":
+        args.export_seeds_only = True
+
+        if args.watch_command == "sync":
+            args.sync_watch_candidates = True
+
+    return args
+
+
+def main():
+    args = _parse_args()
 
     # Configure logging to both file and console
     logging.basicConfig(
@@ -141,17 +203,17 @@ def main():
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
             logging.FileHandler(os.path.join(config.WORKING_DIRECTORY, config.LOG_FILE)),
-            logging.StreamHandler(sys.stdout)  # Add console output
-        ]
+            logging.StreamHandler(sys.stdout),
+        ],
     )
     logger = logging.getLogger(__name__)
-    logger.info("Starting GitHub starred repository fetch")   
-     
+    logger.info("Starting GitHub starred repository fetch")
+
     if not os.path.exists(config.WORKING_DIRECTORY):
         logger.error(f"Working directory does not exist: {config.WORKING_DIRECTORY}")
         os.makedirs(config.WORKING_DIRECTORY, exist_ok=True)
         logger.info(f"Created working directory: {config.WORKING_DIRECTORY}")
-    
+
     logger.info(f"Working directory: {config.WORKING_DIRECTORY}")
     logger.info(f"Write permission: {os.access(config.WORKING_DIRECTORY, os.W_OK)}")
 
@@ -263,7 +325,7 @@ def main():
     # Generate repository information
     with open(starred_repos_file_path, "r", encoding="utf-8") as f:
         urls = starred_repos_file.extract_urls(f.read())
-    
+
     logger.info(f"Starting to generate info for {len(urls)} repositories")
     newly_unmaintained = repo_info.generate_repo_info(
         urls,

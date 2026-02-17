@@ -1,5 +1,6 @@
 import logging
 import time
+from dataclasses import dataclass
 from typing import Optional
 
 import requests
@@ -9,6 +10,14 @@ from . import cache
 from . import config
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ReadmeFetchResult:
+    status: str
+    content: Optional[str]
+    etag: str = ""
+    last_modified: str = ""
 
 
 def get_github_headers() -> dict:
@@ -146,12 +155,95 @@ def fetch_github_text(url: str, headers: dict) -> Optional[str]:
         return None
 
 
-def fetch_readme_markdown(github_url: str, headers: dict) -> Optional[str]:
-    """Fetch repository README content as markdown text."""
+@stamina.retry(
+    on=lambda e: isinstance(e, requests.exceptions.RequestException)
+    and (is_github_rate_limit(e) or not isinstance(e, requests.exceptions.HTTPError)),
+    attempts=6,
+    wait_initial=1.0,
+    wait_max=60.0,
+    wait_jitter=1.0,
+)
+def fetch_readme_markdown_with_metadata(
+    github_url: str,
+    headers: dict,
+    if_none_match: str = "",
+    if_modified_since: str = "",
+) -> ReadmeFetchResult:
+    """Fetch README markdown and return status + validators.
+
+    Returns one of: ok, not_modified, not_found, forbidden, error.
+    """
     readme_url = get_readme_api_url(github_url)
     readme_headers = headers.copy()
     readme_headers["Accept"] = "application/vnd.github.raw+json"
-    return fetch_github_text(readme_url, readme_headers)
+
+    if if_none_match:
+        readme_headers["If-None-Match"] = if_none_match
+    if if_modified_since:
+        readme_headers["If-Modified-Since"] = if_modified_since
+
+    try:
+        _sleep_if_configured()
+        response = requests.get(readme_url, headers=readme_headers)
+
+        response_etag = response.headers.get("ETag", "")
+        response_last_modified = response.headers.get("Last-Modified", "")
+
+        if response.status_code == 403:
+            if "X-RateLimit-Remaining" in response.headers and "X-RateLimit-Reset" in response.headers:
+                handle_rate_limit(response)
+                response.raise_for_status()
+            logger.warning(f"403 Forbidden (not rate limit) for {readme_url}. Skipping.")
+            return ReadmeFetchResult(
+                status="forbidden",
+                content=None,
+                etag=response_etag,
+                last_modified=response_last_modified,
+            )
+
+        if response.status_code == 304:
+            return ReadmeFetchResult(
+                status="not_modified",
+                content=None,
+                etag=response_etag,
+                last_modified=response_last_modified,
+            )
+
+        if response.status_code == 404:
+            return ReadmeFetchResult(
+                status="not_found",
+                content=None,
+                etag=response_etag,
+                last_modified=response_last_modified,
+            )
+
+        if response.status_code != 200:
+            logger.error(f"README request failed: {readme_url} - {response.status_code} - {response.text[:500]}")
+            response.raise_for_status()
+
+        return ReadmeFetchResult(
+            status="ok",
+            content=response.text,
+            etag=response_etag,
+            last_modified=response_last_modified,
+        )
+
+    except requests.exceptions.RequestException as e:
+        if not isinstance(e, requests.exceptions.HTTPError):
+            raise
+
+        response = e.response
+        if response is None or response.status_code != 403:
+            raise
+
+        logger.warning(f"Access forbidden for {readme_url}. Skipping.")
+        return ReadmeFetchResult(status="forbidden", content=None)
+
+
+def fetch_readme_markdown(github_url: str, headers: dict) -> Optional[str]:
+    """Fetch repository README content as markdown text (legacy helper)."""
+    result = fetch_readme_markdown_with_metadata(github_url, headers)
+    return result.content if result.status == "ok" else None
 
 
 def fetch_starred_repos(api_url: str, headers: dict) -> list[str]:

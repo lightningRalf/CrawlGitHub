@@ -7,14 +7,19 @@ import os
 import re
 from typing import Any
 
+import requests
+
 from . import config
 from . import github_api
 
 logger = logging.getLogger(__name__)
 
 
+FRONTMATTER_SCHEMA_VERSION = 2
+
 FRONTMATTER_ORDER = [
     "type",
+    "schema_version",
     "source",
     "repo",
     "repo_url",
@@ -38,8 +43,24 @@ FRONTMATTER_ORDER = [
     "readme_note",
     "readme_sha256",
     "readme_synced_at",
+    "readme_last_attempt_at",
+    "readme_last_status",
+    "readme_etag",
+    "readme_last_modified",
     "readme_source_pushed_at",
 ]
+
+README_STATUS_RETRY_COOLDOWN_DAYS = {
+    "not_found": 30,
+    "forbidden": 7,
+    "error": 2,
+}
+
+USER_AUTHORED_FRONTMATTER_FIELDS = {
+    "review_status",
+    "why_starred",
+    "next_action",
+}
 
 
 TABLE_ROW_PATTERN = re.compile(
@@ -418,26 +439,148 @@ def _fetch_latest_release(releases_url: str, headers: dict) -> str:
     return "No release found"
 
 
+def _parse_iso_datetime(value: str) -> datetime.datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+
+    try:
+        parsed = datetime.datetime.fromisoformat(text)
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+
+    return parsed.astimezone(datetime.timezone.utc)
+
+
+def _is_readme_stale(
+    readme_reference_at: str,
+    stale_fallback_days: int,
+    now_utc: datetime.datetime,
+) -> bool:
+    if stale_fallback_days <= 0:
+        return False
+
+    reference_dt = _parse_iso_datetime(readme_reference_at)
+    if reference_dt is None:
+        return True
+
+    stale_delta = datetime.timedelta(days=stale_fallback_days)
+    return now_utc - reference_dt >= stale_delta
+
+
+def _stale_days_with_repo_jitter(
+    stale_fallback_days: int,
+    repo_identity: str,
+    jitter_span_days: int,
+) -> int:
+    base_days = max(0, stale_fallback_days)
+    jitter_span = max(0, jitter_span_days)
+    if base_days <= 0 or jitter_span <= 0:
+        return base_days
+
+    normalized_identity = str(repo_identity or "").strip().lower()
+    if not normalized_identity:
+        return base_days
+
+    digest = hashlib.sha256(normalized_identity.encode("utf-8")).hexdigest()
+    jitter_days = int(digest[:8], 16) % jitter_span
+    return base_days + jitter_days
+
+
+def _readme_retry_cooldown_remaining(
+    readme_last_status: str,
+    readme_last_attempt_at: str,
+    now_utc: datetime.datetime,
+) -> datetime.timedelta | None:
+    retry_cooldown_days = README_STATUS_RETRY_COOLDOWN_DAYS.get(str(readme_last_status or "").strip().lower(), 0)
+    if retry_cooldown_days <= 0:
+        return None
+
+    attempt_dt = _parse_iso_datetime(readme_last_attempt_at)
+    if attempt_dt is None:
+        return None
+
+    cooldown_delta = datetime.timedelta(days=retry_cooldown_days)
+    elapsed = now_utc - attempt_dt
+    if elapsed >= cooldown_delta:
+        return None
+
+    return cooldown_delta - elapsed
+
+
+def _is_readme_retry_cooldown_active(
+    readme_last_status: str,
+    readme_last_attempt_at: str,
+    now_utc: datetime.datetime,
+) -> bool:
+    return _readme_retry_cooldown_remaining(readme_last_status, readme_last_attempt_at, now_utc) is not None
+
+
+def _readme_sync_reason(
+    mode: str,
+    readme_exists: bool,
+    previous_source_pushed_at: str,
+    current_source_pushed_at: str,
+    readme_synced_at: str = "",
+    readme_last_attempt_at: str = "",
+    stale_fallback_days: int = 0,
+    now_utc: datetime.datetime | None = None,
+) -> str:
+    mode = mode.lower()
+
+    if mode == "off":
+        return "mode-off"
+
+    if mode == "always":
+        return "always"
+
+    if mode == "new":
+        return "missing" if not readme_exists else "new-skip-existing"
+
+    if mode == "if-pushed":
+        if not readme_exists:
+            return "missing"
+
+        if current_source_pushed_at and previous_source_pushed_at != current_source_pushed_at:
+            return "pushed"
+
+        current_now_utc = now_utc or datetime.datetime.now(datetime.timezone.utc)
+        stale_reference_at = str(readme_last_attempt_at or readme_synced_at)
+        if _is_readme_stale(stale_reference_at, stale_fallback_days, current_now_utc):
+            return "stale"
+
+        return "if-pushed-skip-fresh"
+
+    return "unknown-mode"
+
+
 def _should_sync_readme(
     mode: str,
     readme_exists: bool,
     previous_source_pushed_at: str,
     current_source_pushed_at: str,
+    readme_synced_at: str = "",
+    readme_last_attempt_at: str = "",
+    stale_fallback_days: int = 0,
+    now_utc: datetime.datetime | None = None,
 ) -> bool:
-    mode = mode.lower()
-    if mode == "off":
-        return False
-    if mode == "always":
-        return True
-    if mode == "new":
-        return not readme_exists
-    if mode == "if-pushed":
-        if not readme_exists:
-            return True
-        if not current_source_pushed_at:
-            return False
-        return previous_source_pushed_at != current_source_pushed_at
-    return False
+    reason = _readme_sync_reason(
+        mode=mode,
+        readme_exists=readme_exists,
+        previous_source_pushed_at=previous_source_pushed_at,
+        current_source_pushed_at=current_source_pushed_at,
+        readme_synced_at=readme_synced_at,
+        readme_last_attempt_at=readme_last_attempt_at,
+        stale_fallback_days=stale_fallback_days,
+        now_utc=now_utc,
+    )
+    return reason in {"always", "missing", "pushed", "stale"}
 
 
 def _collect_latest_metrics(
@@ -457,6 +600,25 @@ def _collect_latest_metrics(
         "contributors": contributors,
         "latest_release": latest_release,
     }
+
+
+def _resolved_schema_version(current_value: Any) -> int:
+    parsed = _to_int(current_value)
+    if parsed is None:
+        return FRONTMATTER_SCHEMA_VERSION
+    return max(parsed, FRONTMATTER_SCHEMA_VERSION)
+
+
+def _ensure_user_field(frontmatter: dict[str, Any], key: str, default_value: Any) -> None:
+    if key not in USER_AUTHORED_FRONTMATTER_FIELDS:
+        return
+
+    if key not in frontmatter:
+        frontmatter[key] = default_value
+        return
+
+    if key == "review_status" and not str(frontmatter.get(key, "")).strip():
+        frontmatter[key] = default_value
 
 
 def _upsert_frontmatter(
@@ -489,6 +651,7 @@ def _upsert_frontmatter(
         topics_text = str(topics or "")
 
     updated["type"] = updated.get("type", "checkbox")
+    updated["schema_version"] = _resolved_schema_version(updated.get("schema_version"))
     updated["source"] = "github-star"
     updated["maintained"] = "true" if maintained else "false"
     updated["repo"] = repo_data.get("full_name") or f"{owner_login}/{repo_data.get('name', '')}".strip("/")
@@ -521,12 +684,9 @@ def _upsert_frontmatter(
     if readme_source_pushed_at:
         updated["readme_source_pushed_at"] = readme_source_pushed_at
 
-    if "review_status" not in updated or not str(updated["review_status"]).strip():
-        updated["review_status"] = "inbox"
-    if "why_starred" not in updated:
-        updated["why_starred"] = ""
-    if "next_action" not in updated:
-        updated["next_action"] = ""
+    _ensure_user_field(updated, "review_status", "inbox")
+    _ensure_user_field(updated, "why_starred", "")
+    _ensure_user_field(updated, "next_action", "")
 
     return updated
 
@@ -537,6 +697,8 @@ def generate_repo_info(
     max_repos: int | None = None,
     resume_from: int | None = None,
     readme_sync_mode: str | None = None,
+    readme_stale_days: int | None = None,
+    readme_stale_jitter_days: int | None = None,
     max_readme_updates: int | None = None,
 ) -> list[str]:
     """Generate repository information and update markdown notes."""
@@ -546,16 +708,35 @@ def generate_repo_info(
     if effective_readme_sync_mode not in config.README_SYNC_MODES:
         effective_readme_sync_mode = config.README_SYNC_MODE
 
+    effective_readme_stale_days = (
+        config.README_SYNC_STALE_DAYS if readme_stale_days is None else max(0, readme_stale_days)
+    )
+    effective_readme_stale_jitter_days = (
+        config.README_SYNC_STALE_JITTER_DAYS
+        if readme_stale_jitter_days is None
+        else max(0, readme_stale_jitter_days)
+    )
+
     readme_updates_remaining = (
         config.MAX_README_UPDATES_PER_RUN if max_readme_updates is None else max(0, max_readme_updates)
     )
 
     logger.info(f"Processing {len(urls)} repositories")
     logger.info(
-        "README sync: mode=%s, max_updates=%s",
+        "README sync: mode=%s, stale_days=%s, stale_jitter_days=%s, max_updates=%s",
         effective_readme_sync_mode,
+        effective_readme_stale_days,
+        effective_readme_stale_jitter_days,
         readme_updates_remaining,
     )
+
+    readme_sync_reason_counts: dict[str, int] = {}
+    readme_sync_status_counts: dict[str, int] = {}
+    readme_stale_window_counts: dict[int, int] = {}
+    readme_sync_due_count = 0
+    readme_sync_attempted_count = 0
+    readme_sync_skipped_budget_count = 0
+    readme_sync_skipped_cooldown_count = 0
 
     newly_unmaintained: list[str] = []
     repo_file_index, max_number = _index_repo_files()
@@ -649,36 +830,123 @@ def generate_repo_info(
             )
 
         previous_readme_source_pushed_at = str(frontmatter.get("readme_source_pushed_at", ""))
+        previous_readme_synced_at = str(frontmatter.get("readme_synced_at", ""))
+        previous_readme_last_attempt_at = str(frontmatter.get("readme_last_attempt_at", ""))
+        previous_readme_last_status = str(frontmatter.get("readme_last_status", ""))
+        previous_readme_etag = str(frontmatter.get("readme_etag", ""))
+        previous_readme_last_modified = str(frontmatter.get("readme_last_modified", ""))
+
+        repo_identity = str(repo_data.get("full_name") or github_url)
+        effective_repo_stale_days = _stale_days_with_repo_jitter(
+            effective_readme_stale_days,
+            repo_identity=repo_identity,
+            jitter_span_days=effective_readme_stale_jitter_days,
+        )
+        readme_stale_window_counts[effective_repo_stale_days] = (
+            readme_stale_window_counts.get(effective_repo_stale_days, 0) + 1
+        )
+
+        readme_sync_reason = _readme_sync_reason(
+            effective_readme_sync_mode,
+            readme_exists,
+            previous_readme_source_pushed_at,
+            latest_commit_date,
+            readme_synced_at=previous_readme_synced_at,
+            readme_last_attempt_at=previous_readme_last_attempt_at,
+            stale_fallback_days=effective_repo_stale_days,
+            now_utc=now_utc,
+        )
+        readme_sync_reason_counts[readme_sync_reason] = (
+            readme_sync_reason_counts.get(readme_sync_reason, 0) + 1
+        )
+
+        should_sync_readme_by_policy = readme_sync_reason in {"always", "missing", "pushed", "stale"}
+        if should_sync_readme_by_policy:
+            readme_sync_due_count += 1
+
+        retry_cooldown_remaining = _readme_retry_cooldown_remaining(
+            previous_readme_last_status,
+            previous_readme_last_attempt_at,
+            now_utc,
+        )
+        retry_cooldown_active = should_sync_readme_by_policy and retry_cooldown_remaining is not None
+
+        if should_sync_readme_by_policy:
+            if retry_cooldown_active:
+                readme_sync_skipped_cooldown_count += 1
+            elif readme_updates_remaining <= 0:
+                readme_sync_skipped_budget_count += 1
+
         should_sync_readme = (
             readme_updates_remaining > 0
-            and _should_sync_readme(
-                effective_readme_sync_mode,
-                readme_exists,
-                previous_readme_source_pushed_at,
-                latest_commit_date,
-            )
+            and should_sync_readme_by_policy
+            and not retry_cooldown_active
         )
+
+        if should_sync_readme_by_policy and retry_cooldown_active:
+            remaining_hours = retry_cooldown_remaining.total_seconds() / 3600 if retry_cooldown_remaining else 0
+            logger.info(
+                "Skipping README sync for %s due cooldown: status=%s, remaining_hours=%.1f",
+                github_url,
+                previous_readme_last_status or "unknown",
+                remaining_hours,
+            )
 
         readme_sha256 = str(frontmatter.get("readme_sha256", ""))
         if should_sync_readme:
+            readme_sync_attempted_count += 1
             readme_updates_remaining -= 1
-            readme_content = github_api.fetch_readme_markdown(github_url, headers.copy())
-            if readme_content is not None:
-                readme_sha256 = _hash_text(readme_content)
+            readme_attempt_at = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
+            try:
+                readme_result = github_api.fetch_readme_markdown_with_metadata(
+                    github_url,
+                    headers.copy(),
+                    if_none_match=previous_readme_etag,
+                    if_modified_since=previous_readme_last_modified,
+                )
+            except requests.exceptions.RequestException as exc:
+                logger.warning("README fetch request error for %s: %s", github_url, exc)
+                readme_result = github_api.ReadmeFetchResult(status="error", content=None)
+
+            readme_sync_status_counts[readme_result.status] = (
+                readme_sync_status_counts.get(readme_result.status, 0) + 1
+            )
+
+            frontmatter["readme_last_attempt_at"] = readme_attempt_at
+            frontmatter["readme_last_status"] = readme_result.status
+
+            if readme_result.etag:
+                frontmatter["readme_etag"] = readme_result.etag
+            if readme_result.last_modified:
+                frontmatter["readme_last_modified"] = readme_result.last_modified
+
+            if readme_result.status == "ok" and readme_result.content is not None:
+                readme_sha256 = _hash_text(readme_result.content)
                 _write_readme_snapshot(
                     readme_note_absolute_path,
                     markdown_file,
                     repo_data.get("full_name") or f"{github_api.split_owner_repo(github_url)[0]}/{repo_name}",
                     github_url,
                     default_branch,
-                    readme_content,
+                    readme_result.content,
                     readme_sha256,
                     latest_commit_date,
                 )
                 readme_exists = True
-                frontmatter["readme_synced_at"] = now_utc.replace(microsecond=0).isoformat()
+                frontmatter["readme_synced_at"] = readme_attempt_at
+
+            elif readme_result.status == "not_modified":
+                frontmatter["readme_synced_at"] = readme_attempt_at
+                logger.info("README unchanged (304): %s", github_url)
+
+            elif readme_result.status == "not_found":
+                logger.info("README not found (404): %s", github_url)
+
+            elif readme_result.status == "forbidden":
+                logger.info("README fetch forbidden (403): %s", github_url)
+
             else:
-                logger.info(f"No README content returned for {github_url}")
+                logger.info("README fetch did not update snapshot for %s (status=%s)", github_url, readme_result.status)
 
         if not readme_exists:
             placeholder_hash = "pending"
@@ -754,5 +1022,31 @@ def generate_repo_info(
 
         _write_note(markdown_file_path, frontmatter, body)
         processed += 1
+
+    evaluated_repos = sum(readme_sync_reason_counts.values())
+    reason_summary = ", ".join(
+        f"{key}={value}" for key, value in sorted(readme_sync_reason_counts.items())
+    ) or "none"
+    status_summary = ", ".join(
+        f"{key}={value}" for key, value in sorted(readme_sync_status_counts.items())
+    ) or "none"
+
+    logger.info(
+        "README sync summary: evaluated=%s, due=%s, attempted=%s, skipped_budget=%s, skipped_cooldown=%s, statuses=[%s], reasons=[%s]",
+        evaluated_repos,
+        readme_sync_due_count,
+        readme_sync_attempted_count,
+        readme_sync_skipped_budget_count,
+        readme_sync_skipped_cooldown_count,
+        status_summary,
+        reason_summary,
+    )
+
+    if effective_readme_sync_mode == "if-pushed" and readme_stale_window_counts:
+        stale_window_summary = ", ".join(
+            f"{days}d={count}"
+            for days, count in sorted(readme_stale_window_counts.items())
+        )
+        logger.info("README stale window distribution (days->repos): %s", stale_window_summary)
 
     return newly_unmaintained

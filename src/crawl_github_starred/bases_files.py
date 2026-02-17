@@ -76,6 +76,54 @@ views:
 """
 
 
+WATCH_CANDIDATES_BASE_CONTENT = """filters:
+  and:
+    - 'watch_candidate == "true"'
+views:
+  - type: table
+    name: Watch candidates
+    order:
+      - file.name
+      - watch_type
+      - watch_status
+      - watch_tags
+      - watch_why
+      - watch_updated_at
+      - repo
+      - package
+      - repo_url
+  - type: table
+    name: Needs triage
+    filters:
+      and:
+        - 'watch_candidate == "true"'
+        - or:
+            - 'watch_status == "new"'
+            - 'watch_status == "inbox"'
+    order:
+      - file.name
+      - watch_type
+      - watch_tags
+      - watch_why
+      - watch_discovered_at
+      - watch_updated_at
+  - type: table
+    name: npm candidates
+    filters:
+      and:
+        - 'watch_candidate == "true"'
+        - 'watch_type == "npm"'
+    order:
+      - file.name
+      - package
+      - watch_status
+      - watch_tags
+      - watch_why
+      - from_repos
+      - repo_url
+"""
+
+
 def write_base_files() -> tuple[str, str]:
     repo_index_path = os.path.join(config.WORKING_DIRECTORY, config.REPO_INDEX_BASE_FILE)
     review_queue_path = os.path.join(config.WORKING_DIRECTORY, config.REVIEW_QUEUE_BASE_FILE)
@@ -87,3 +135,10 @@ def write_base_files() -> tuple[str, str]:
         f.write(REVIEW_QUEUE_BASE_CONTENT.rstrip() + "\n")
 
     return repo_index_path, review_queue_path
+
+
+def write_watch_candidates_base() -> str:
+    watch_candidates_path = os.path.join(config.WORKING_DIRECTORY, config.WATCH_CANDIDATES_BASE_FILE)
+    with open(watch_candidates_path, "w", encoding="utf-8") as f:
+        f.write(WATCH_CANDIDATES_BASE_CONTENT.rstrip() + "\n")
+    return watch_candidates_path

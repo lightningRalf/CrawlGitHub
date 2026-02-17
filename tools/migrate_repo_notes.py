@@ -21,8 +21,11 @@ TABLE_ROW_PATTERN = re.compile(
     r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$"
 )
 
+FRONTMATTER_SCHEMA_VERSION = 2
+
 FRONTMATTER_ORDER = [
     "type",
+    "schema_version",
     "source",
     "repo",
     "repo_url",
@@ -46,6 +49,10 @@ FRONTMATTER_ORDER = [
     "readme_note",
     "readme_sha256",
     "readme_synced_at",
+    "readme_last_attempt_at",
+    "readme_last_status",
+    "readme_etag",
+    "readme_last_modified",
     "readme_source_pushed_at",
 ]
 
@@ -352,9 +359,23 @@ def process_repo_file(path: Path, root: Path, dry_run: bool, create_readme_place
 
     frontmatter["repo_description"] = repo_description
     frontmatter["type"] = frontmatter.get("type", "checkbox")
+
+    current_schema_version = None
+    try:
+        current_schema_version = int(str(frontmatter.get("schema_version", "")).strip())
+    except (TypeError, ValueError):
+        current_schema_version = None
+    if current_schema_version is None:
+        frontmatter["schema_version"] = FRONTMATTER_SCHEMA_VERSION
+    else:
+        frontmatter["schema_version"] = max(current_schema_version, FRONTMATTER_SCHEMA_VERSION)
+
     frontmatter["source"] = "github-star"
     frontmatter["maintained"] = frontmatter.get("maintained", "true")
-    frontmatter["review_status"] = frontmatter.get("review_status") or "inbox"
+
+    review_status = str(frontmatter.get("review_status") or "").strip()
+    frontmatter["review_status"] = review_status or "inbox"
+
     frontmatter.setdefault("why_starred", "")
     frontmatter.setdefault("next_action", "")
     frontmatter.setdefault("topics", "")

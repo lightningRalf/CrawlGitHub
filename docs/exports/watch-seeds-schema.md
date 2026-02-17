@@ -5,6 +5,9 @@ CrawlGitHub can export pi-extension scouting candidates as JSONL files.
 - GitHub candidates: `docs/exports/extensions-watch-seeds.github.jsonl`
 - npm candidates: `docs/exports/extensions-watch-seeds.npm.jsonl`
 
+It can also sync candidates directly into Obsidian notes/frontmatter with
+`--sync-watch-candidates` and generate `23.03.00_WatchCandidates.base`.
+
 Each line is one JSON object.
 
 ## Normalized fields

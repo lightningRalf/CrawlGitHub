@@ -16,9 +16,13 @@ class Config:
     github_pat: str
     readme_notes_subdir: str
     readme_sync_mode: str
+    readme_sync_stale_days: int
+    readme_sync_stale_jitter_days: int
     max_readme_updates_per_run: int
     repo_index_base_file: str
     review_queue_base_file: str
+    watch_candidates_base_file: str
+    watch_candidates_subdir: str
 
     @staticmethod
     def from_env() -> "Config":
@@ -43,6 +47,16 @@ class Config:
         if readme_sync_mode not in README_SYNC_MODES:
             readme_sync_mode = "new"
 
+        readme_sync_stale_days = int(
+            os.environ.get("CRAWLGITHUB_README_SYNC_STALE_DAYS", "30")
+        )
+        readme_sync_stale_days = max(0, readme_sync_stale_days)
+
+        readme_sync_stale_jitter_days = int(
+            os.environ.get("CRAWLGITHUB_README_STALE_JITTER_DAYS", "7")
+        )
+        readme_sync_stale_jitter_days = max(0, readme_sync_stale_jitter_days)
+
         max_readme_updates = int(
             os.environ.get("CRAWLGITHUB_MAX_README_UPDATES_PER_RUN", "25")
         )
@@ -61,6 +75,8 @@ class Config:
                 "23.03_READMEs",
             ),
             readme_sync_mode=readme_sync_mode,
+            readme_sync_stale_days=readme_sync_stale_days,
+            readme_sync_stale_jitter_days=readme_sync_stale_jitter_days,
             max_readme_updates_per_run=max_readme_updates,
             repo_index_base_file=os.environ.get(
                 "CRAWLGITHUB_REPO_INDEX_BASE_FILE",
@@ -69,6 +85,14 @@ class Config:
             review_queue_base_file=os.environ.get(
                 "CRAWLGITHUB_REVIEW_QUEUE_BASE_FILE",
                 "23.03.00_ReviewQueue.base",
+            ),
+            watch_candidates_base_file=os.environ.get(
+                "CRAWLGITHUB_WATCH_CANDIDATES_BASE_FILE",
+                "23.03.00_WatchCandidates.base",
+            ),
+            watch_candidates_subdir=os.environ.get(
+                "CRAWLGITHUB_WATCH_CANDIDATES_SUBDIR",
+                "23.03_WatchCandidates",
             ),
         )
 
@@ -84,8 +108,12 @@ REQUEST_DELAY_SECONDS = CONFIG.request_delay_seconds
 GITHUB_PAT = CONFIG.github_pat
 README_NOTES_SUBDIR = CONFIG.readme_notes_subdir
 README_SYNC_MODE = CONFIG.readme_sync_mode
+README_SYNC_STALE_DAYS = CONFIG.readme_sync_stale_days
+README_SYNC_STALE_JITTER_DAYS = CONFIG.readme_sync_stale_jitter_days
 MAX_README_UPDATES_PER_RUN = CONFIG.max_readme_updates_per_run
 REPO_INDEX_BASE_FILE = CONFIG.repo_index_base_file
 REVIEW_QUEUE_BASE_FILE = CONFIG.review_queue_base_file
+WATCH_CANDIDATES_BASE_FILE = CONFIG.watch_candidates_base_file
+WATCH_CANDIDATES_SUBDIR = CONFIG.watch_candidates_subdir
 
 os.makedirs(CACHE_DIR, exist_ok=True)

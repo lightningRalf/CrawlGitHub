@@ -39,6 +39,18 @@ def main():
         help="README sync mode: off, new, if-pushed, always.",
     )
     parser.add_argument(
+        "--readme-stale-days",
+        type=int,
+        default=config.README_SYNC_STALE_DAYS,
+        help="Stale fallback window in days for README sync when mode is if-pushed (0 disables fallback).",
+    )
+    parser.add_argument(
+        "--readme-stale-jitter-days",
+        type=int,
+        default=config.README_SYNC_STALE_JITTER_DAYS,
+        help="Deterministic per-repo stale jitter span (adds hash(repo) %% N days; 0 disables jitter).",
+    )
+    parser.add_argument(
         "--max-readme-updates",
         type=int,
         default=config.MAX_README_UPDATES_PER_RUN,
@@ -48,6 +60,11 @@ def main():
         "--skip-bases",
         action="store_true",
         help="Do not regenerate Obsidian .base files.",
+    )
+    parser.add_argument(
+        "--sync-watch-candidates",
+        action="store_true",
+        help="Sync watch candidates into note frontmatter and npm candidate notes.",
     )
     parser.add_argument(
         "--export-watch-seeds",
@@ -113,11 +130,42 @@ def main():
         if args.export_npm_seeds:
             logger.info("Wrote npm watch seed export: %s", args.export_npm_seeds)
 
+    def run_watch_candidate_sync() -> None:
+        sync_stats = watchlist_exports.sync_watch_candidates_to_notes(
+            max_npm_lookups=max(0, args.max_npm_lookups),
+        )
+        logger.info(
+            "Watch candidate sync: scanned_notes=%s, repo_candidates=%s, npm_candidates=%s, repo_notes_updated=%s, repo_notes_missing=%s, npm_notes_created=%s, npm_notes_updated=%s, npm_lookups=%s",
+            sync_stats.get("scanned_notes"),
+            sync_stats.get("repo_candidates"),
+            sync_stats.get("npm_candidates"),
+            sync_stats.get("repo_notes_updated"),
+            sync_stats.get("repo_notes_missing"),
+            sync_stats.get("npm_notes_created"),
+            sync_stats.get("npm_notes_updated"),
+            sync_stats.get("npm_lookups"),
+        )
+
+        if not args.skip_bases:
+            watch_base_path = bases_files.write_watch_candidates_base()
+            logger.info("Wrote base file: %s", watch_base_path)
+
     if args.export_seeds_only:
-        if not args.export_watch_seeds and not args.export_npm_seeds:
-            logger.warning("--export-seeds-only was set without export output paths.")
-        else:
+        did_any_seed_action = False
+
+        if args.sync_watch_candidates:
+            run_watch_candidate_sync()
+            did_any_seed_action = True
+
+        if args.export_watch_seeds or args.export_npm_seeds:
             run_watch_seed_export()
+            did_any_seed_action = True
+
+        if not did_any_seed_action:
+            logger.warning(
+                "--export-seeds-only was set without --sync-watch-candidates or export output paths."
+            )
+
         logger.info("Repository information generation completed")
         return
 
@@ -156,6 +204,8 @@ def main():
         max_repos=args.max_repos,
         resume_from=args.resume_from,
         readme_sync_mode=args.readme_sync_mode,
+        readme_stale_days=args.readme_stale_days,
+        readme_stale_jitter_days=args.readme_stale_jitter_days,
         max_readme_updates=args.max_readme_updates,
     )
     starred_repos_file.write_starred_repos_file(
@@ -169,6 +219,9 @@ def main():
         repo_index_path, review_queue_path = bases_files.write_base_files()
         logger.info(f"Wrote base file: {repo_index_path}")
         logger.info(f"Wrote base file: {review_queue_path}")
+
+    if args.sync_watch_candidates:
+        run_watch_candidate_sync()
 
     if args.export_watch_seeds or args.export_npm_seeds:
         run_watch_seed_export()

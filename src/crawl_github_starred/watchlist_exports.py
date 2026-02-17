@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json
 import logging
 import os
@@ -77,6 +78,26 @@ PACKAGE_JSON_NAME_PATTERN = re.compile(
     r'"name"\s*:\s*"(@?[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)?)"'
 )
 
+WATCH_NOTE_FRONTMATTER_ORDER = [
+    "type",
+    "source",
+    "watch_candidate",
+    "watch_type",
+    "watch_seed_id",
+    "watch_status",
+    "watch_owner",
+    "watch_tags",
+    "watch_why",
+    "watch_discovered_at",
+    "watch_updated_at",
+    "title",
+    "repo",
+    "repo_url",
+    "package",
+    "from_repos",
+    "from_repo_ids",
+]
+
 
 def _utc_now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -107,6 +128,63 @@ def _parse_frontmatter(content: str) -> tuple[dict[str, str], str]:
 
     body = normalized[end + 5 :]
     return frontmatter, body
+
+
+def _yaml_scalar(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if value is None:
+        return '""'
+
+    text = str(value).strip()
+    if text == "":
+        return '""'
+
+    if re.fullmatch(r"[A-Za-z0-9_./:@+\-]+", text):
+        return text
+
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def _render_frontmatter(frontmatter: dict[str, Any], key_order: list[str] | None = None) -> str:
+    if not frontmatter:
+        return ""
+
+    ordered: list[str] = []
+    if key_order:
+        for key in key_order:
+            if key in frontmatter:
+                ordered.append(key)
+
+    for key in frontmatter:
+        if key not in ordered:
+            ordered.append(key)
+
+    lines = ["---"]
+    for key in ordered:
+        lines.append(f"{key}: {_yaml_scalar(frontmatter[key])}")
+    lines.append("---")
+    return "\n".join(lines) + "\n\n"
+
+
+def _write_text_if_changed(path: str, content: str) -> bool:
+    existing = ""
+    if os.path.exists(path):
+        existing = _read_text(path)
+        if existing == content:
+            return False
+
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return True
 
 
 def _read_text(path: str) -> str:
@@ -596,16 +674,7 @@ def _write_jsonl(path: str, rows: list[dict[str, Any]]) -> None:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def export_watch_seed_files(
-    github_output_path: str | None,
-    npm_output_path: str | None,
-    max_npm_lookups: int = 0,
-) -> dict[str, Any]:
-    """Export watchlist seed candidates from local CrawlGitHub notes.
-
-    The export is local-first and does not call GitHub APIs.
-    Optional npm metadata enrichment is bounded by ``max_npm_lookups``.
-    """
+def _collect_watch_seed_candidates(max_npm_lookups: int = 0) -> dict[str, Any]:
     fallback_discovered_at = _utc_now_iso()
 
     repo_candidates_by_id: dict[str, dict[str, Any]] = {}
@@ -687,6 +756,181 @@ def export_watch_seed_files(
 
     npm_lookups_done = _enrich_npm_candidates(npm_candidates, max(0, max_npm_lookups))
 
+    return {
+        "scanned_notes": scanned_notes,
+        "pi_candidates": pi_candidates,
+        "repo_candidates": repo_candidates,
+        "npm_candidates": npm_candidates,
+        "npm_lookups": npm_lookups_done,
+    }
+
+
+def _sanitize_filename(value: str) -> str:
+    sanitized = re.sub(r"[^A-Za-z0-9_.-]", "-", str(value or "").strip())
+    sanitized = re.sub(r"-+", "-", sanitized).strip("-")
+    return sanitized or "candidate"
+
+
+def _repo_note_path_from_candidate(candidate: dict[str, Any]) -> str:
+    note_stem = str(candidate.get("repoNote") or "").strip()
+    if not note_stem:
+        return ""
+    return os.path.join(config.WORKING_DIRECTORY, f"{note_stem}.md")
+
+
+def _npm_candidate_relative_path(candidate: dict[str, Any]) -> str:
+    candidate_id = str(candidate.get("id") or candidate.get("package") or candidate.get("title") or "npm:unknown")
+    digest = hashlib.sha256(candidate_id.lower().encode("utf-8")).hexdigest()[:12]
+    package_name = str(candidate.get("package") or candidate.get("title") or "npm-candidate")
+    filename = f"npm__{_sanitize_filename(package_name)}__{digest}.md"
+    return os.path.join(config.WATCH_CANDIDATES_SUBDIR, filename).replace("\\", "/")
+
+
+def _as_joined_csv(values: Any) -> str:
+    if not isinstance(values, list):
+        return ""
+    cleaned = [str(value).strip() for value in values if str(value).strip()]
+    return ", ".join(cleaned)
+
+
+def _upsert_repo_candidate_note(candidate: dict[str, Any], now_iso: str) -> tuple[bool, bool]:
+    note_path = _repo_note_path_from_candidate(candidate)
+    if not note_path:
+        return False, True
+
+    if not os.path.exists(note_path):
+        logger.warning("Repo candidate note not found: %s", note_path)
+        return False, True
+
+    try:
+        content = _read_text(note_path)
+    except OSError:
+        logger.warning("Failed to read repo candidate note: %s", note_path)
+        return False, True
+
+    frontmatter, body = _parse_frontmatter(content)
+    updated = dict(frontmatter)
+
+    updated["watch_candidate"] = "true"
+    updated["watch_type"] = "repo"
+    updated["watch_seed_id"] = str(candidate.get("id") or "")
+    updated["watch_tags"] = _as_joined_csv(candidate.get("tags"))
+    updated["watch_why"] = str(candidate.get("whyWatch") or "")
+    updated["watch_discovered_at"] = str(candidate.get("discoveredAt") or now_iso)
+    updated["watch_updated_at"] = now_iso
+
+    if not str(updated.get("watch_status") or "").strip():
+        updated["watch_status"] = "new"
+    if not str(updated.get("watch_owner") or "").strip():
+        updated["watch_owner"] = str(candidate.get("owner") or "you")
+
+    rewritten = _render_frontmatter(updated) + body.lstrip("\n")
+    changed = _write_text_if_changed(note_path, rewritten)
+    return changed, False
+
+
+def _default_npm_candidate_body(candidate: dict[str, Any], note_stem: str) -> str:
+    title = str(candidate.get("title") or candidate.get("package") or note_stem)
+    package_name = str(candidate.get("package") or title)
+    why_watch = str(candidate.get("whyWatch") or "")
+    tags_csv = _as_joined_csv(candidate.get("tags"))
+    repo_url = str(candidate.get("repoUrl") or "").strip()
+    from_repos = candidate.get("fromRepos") if isinstance(candidate.get("fromRepos"), list) else []
+
+    lines = [
+        f"# Watch candidate — {title}",
+        "",
+        f"- Package: `{package_name}`",
+        f"- Why watch: {why_watch or '-'}",
+        f"- Tags: {tags_csv or '-'}",
+    ]
+
+    if repo_url:
+        lines.append(f"- Related repo: {repo_url}")
+
+    if from_repos:
+        lines.append("- Derived from repos:")
+        for repo in from_repos:
+            lines.append(f"  - {repo}")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _upsert_npm_candidate_note(candidate: dict[str, Any], now_iso: str) -> tuple[bool, bool]:
+    relative_path = _npm_candidate_relative_path(candidate)
+    absolute_path = os.path.join(config.WORKING_DIRECTORY, relative_path)
+    existed_before = os.path.exists(absolute_path)
+
+    existing_content = ""
+    if existed_before:
+        try:
+            existing_content = _read_text(absolute_path)
+        except OSError:
+            logger.warning("Failed to read npm candidate note: %s", absolute_path)
+            existing_content = ""
+
+    frontmatter, body = _parse_frontmatter(existing_content) if existing_content else ({}, "")
+    updated = dict(frontmatter)
+
+    title = str(candidate.get("title") or candidate.get("package") or "npm-candidate")
+    package_name = str(candidate.get("package") or title)
+
+    updated["type"] = "watch_candidate"
+    updated["source"] = "watch-seed"
+    updated["watch_candidate"] = "true"
+    updated["watch_type"] = "npm"
+    updated["watch_seed_id"] = str(candidate.get("id") or "")
+    updated["watch_tags"] = _as_joined_csv(candidate.get("tags"))
+    updated["watch_why"] = str(candidate.get("whyWatch") or "")
+    updated["watch_discovered_at"] = str(candidate.get("discoveredAt") or now_iso)
+    updated["watch_updated_at"] = now_iso
+    updated["title"] = title
+    updated["package"] = package_name
+
+    repo_url = str(candidate.get("repoUrl") or "").strip()
+    if repo_url:
+        updated["repo_url"] = repo_url
+
+    from_repos_csv = _as_joined_csv(candidate.get("fromRepos"))
+    if from_repos_csv:
+        updated["from_repos"] = from_repos_csv
+
+    from_repo_ids_csv = _as_joined_csv(candidate.get("fromRepoIds"))
+    if from_repo_ids_csv:
+        updated["from_repo_ids"] = from_repo_ids_csv
+
+    if not str(updated.get("watch_status") or "").strip():
+        updated["watch_status"] = "new"
+    if not str(updated.get("watch_owner") or "").strip():
+        updated["watch_owner"] = str(candidate.get("owner") or "you")
+
+    note_stem = os.path.splitext(os.path.basename(relative_path))[0]
+    effective_body = body if body.strip() else _default_npm_candidate_body(candidate, note_stem)
+
+    rewritten = _render_frontmatter(updated, WATCH_NOTE_FRONTMATTER_ORDER) + effective_body.lstrip("\n")
+    changed = _write_text_if_changed(absolute_path, rewritten)
+
+    created = changed and not existed_before
+    updated_existing = changed and existed_before
+    return created, updated_existing
+
+
+def export_watch_seed_files(
+    github_output_path: str | None,
+    npm_output_path: str | None,
+    max_npm_lookups: int = 0,
+) -> dict[str, Any]:
+    """Export watchlist seed candidates from local CrawlGitHub notes.
+
+    The export is local-first and does not call GitHub APIs.
+    Optional npm metadata enrichment is bounded by ``max_npm_lookups``.
+    """
+    collected = _collect_watch_seed_candidates(max_npm_lookups=max_npm_lookups)
+
+    repo_candidates = list(collected.get("repo_candidates", []))
+    npm_candidates = list(collected.get("npm_candidates", []))
+
     if github_output_path:
         _write_jsonl(github_output_path, repo_candidates)
 
@@ -694,11 +938,57 @@ def export_watch_seed_files(
         _write_jsonl(npm_output_path, npm_candidates)
 
     return {
-        "scanned_notes": scanned_notes,
-        "pi_candidates": pi_candidates,
+        "scanned_notes": int(collected.get("scanned_notes", 0)),
+        "pi_candidates": int(collected.get("pi_candidates", 0)),
         "repo_candidates": len(repo_candidates),
         "npm_candidates": len(npm_candidates),
-        "npm_lookups": npm_lookups_done,
+        "npm_lookups": int(collected.get("npm_lookups", 0)),
         "github_output_path": github_output_path,
         "npm_output_path": npm_output_path,
+    }
+
+
+def sync_watch_candidates_to_notes(max_npm_lookups: int = 0) -> dict[str, Any]:
+    """Sync watch candidates into Obsidian notes/frontmatter.
+
+    - Repo candidates are synced into existing repo notes.
+    - npm candidates are synced into dedicated notes under ``WATCH_CANDIDATES_SUBDIR``.
+    """
+    collected = _collect_watch_seed_candidates(max_npm_lookups=max_npm_lookups)
+    repo_candidates = list(collected.get("repo_candidates", []))
+    npm_candidates = list(collected.get("npm_candidates", []))
+
+    now_iso = _utc_now_iso()
+
+    repo_notes_updated = 0
+    repo_notes_missing = 0
+
+    for candidate in repo_candidates:
+        changed, missing = _upsert_repo_candidate_note(candidate, now_iso)
+        if missing:
+            repo_notes_missing += 1
+        if changed:
+            repo_notes_updated += 1
+
+    npm_notes_created = 0
+    npm_notes_updated = 0
+
+    for candidate in npm_candidates:
+        created, updated = _upsert_npm_candidate_note(candidate, now_iso)
+        if created:
+            npm_notes_created += 1
+        elif updated:
+            npm_notes_updated += 1
+
+    return {
+        "scanned_notes": int(collected.get("scanned_notes", 0)),
+        "pi_candidates": int(collected.get("pi_candidates", 0)),
+        "repo_candidates": len(repo_candidates),
+        "npm_candidates": len(npm_candidates),
+        "npm_lookups": int(collected.get("npm_lookups", 0)),
+        "repo_notes_updated": repo_notes_updated,
+        "repo_notes_missing": repo_notes_missing,
+        "npm_notes_created": npm_notes_created,
+        "npm_notes_updated": npm_notes_updated,
+        "watch_candidates_subdir": config.WATCH_CANDIDATES_SUBDIR,
     }

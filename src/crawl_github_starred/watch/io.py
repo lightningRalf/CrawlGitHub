@@ -4,7 +4,7 @@ import datetime
 import json
 import os
 import re
-from typing import Any
+from typing import Any, Sequence
 
 from .. import config
 
@@ -63,7 +63,7 @@ def _yaml_scalar(value: Any) -> str:
     return f'"{escaped}"'
 
 
-def _render_frontmatter(frontmatter: dict[str, Any], key_order: list[str] | None = None) -> str:
+def _render_frontmatter(frontmatter: dict[str, Any], key_order: Sequence[str] | None = None) -> str:
     if not frontmatter:
         return ""
 

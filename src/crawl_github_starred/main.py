@@ -55,9 +55,9 @@ def _write_watch_telemetry(event_type: str, stats: dict[str, object]) -> str | N
 CLI_EPILOG = "\n".join(
     [
         "Examples:",
+        "  crawl-github crawl --skip-existing --max-repos 50",
         "  crawl-github watch sync --prune-watch-candidates --max-npm-lookups 0",
         "  crawl-github watch export --export-watch-seeds watch-github.jsonl --export-npm-seeds watch-npm.jsonl",
-        "  crawl-github --export-seeds-only --sync-watch-candidates --max-npm-lookups 0",
     ]
 )
 
@@ -80,30 +80,6 @@ def _add_watch_seed_export_arguments(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=0,
         help="Optional cap for npm metadata enrichment requests (default: 0).",
-    )
-
-
-def _add_watch_legacy_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--skip-bases",
-        action="store_true",
-        help="Do not regenerate Obsidian .base files.",
-    )
-    parser.add_argument(
-        "--sync-watch-candidates",
-        action="store_true",
-        help="Sync watch candidates into note frontmatter and npm candidate notes.",
-    )
-    parser.add_argument(
-        "--prune-watch-candidates",
-        action="store_true",
-        help="Archive watch candidates no longer detected during sync (sets watch_status=archived).",
-    )
-    _add_watch_seed_export_arguments(parser)
-    parser.add_argument(
-        "--export-seeds-only",
-        action="store_true",
-        help="Only export watch seeds from local notes (no GitHub API calls).",
     )
 
 
@@ -164,8 +140,11 @@ def _add_crawl_arguments(parser: argparse.ArgumentParser) -> None:
         default=config.MAX_README_UPDATES_PER_RUN,
         help="Maximum README snapshot updates per run.",
     )
-
-    _add_watch_legacy_arguments(parser)
+    parser.add_argument(
+        "--skip-bases",
+        action="store_true",
+        help="Do not regenerate Obsidian .base files.",
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -178,7 +157,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     crawl_parser = subparsers.add_parser(
         "crawl",
-        help="Run the full crawl workflow (default when no command is provided).",
+        help="Run the full crawl workflow.",
         description="Run the full crawl workflow against GitHub starred repositories.",
     )
     _add_crawl_arguments(crawl_parser)
@@ -210,36 +189,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     raw_argv = list(sys.argv[1:] if argv is None else argv)
     parser = _build_parser()
-
-    if raw_argv in (["-h"], ["--help"]):
-        parser.parse_args(raw_argv)
-
-    explicit_command = bool(raw_argv) and raw_argv[0] in {"crawl", "watch"}
-    argv_to_parse = raw_argv if explicit_command else ["crawl", *raw_argv]
-
-    args = parser.parse_args(argv_to_parse)
-
-    defaults: dict[str, object] = {
-        "watch_command": None,
-        "skip_bases": False,
-        "sync_watch_candidates": False,
-        "prune_watch_candidates": False,
-        "export_watch_seeds": None,
-        "export_npm_seeds": None,
-        "max_npm_lookups": 0,
-        "export_seeds_only": False,
-    }
-    for key, default_value in defaults.items():
-        if not hasattr(args, key):
-            setattr(args, key, default_value)
-
-    if args.command == "watch":
-        args.export_seeds_only = True
-
-        if args.watch_command == "sync":
-            args.sync_watch_candidates = True
-
-    return args
+    return parser.parse_args(raw_argv)
 
 
 def main():
@@ -264,9 +214,6 @@ def main():
 
     logger.info(f"Working directory: {config.WORKING_DIRECTORY}")
     logger.info(f"Write permission: {os.access(config.WORKING_DIRECTORY, os.W_OK)}")
-
-    if args.prune_watch_candidates and not args.sync_watch_candidates:
-        logger.warning("--prune-watch-candidates has no effect without --sync-watch-candidates.")
 
     def run_watch_seed_export() -> None:
         export_stats = watch_export.export_watch_seed_files(
@@ -327,26 +274,18 @@ def main():
             watch_base_path = bases_files.write_watch_candidates_base()
             logger.info("Wrote base file: %s", watch_base_path)
 
-    if args.export_seeds_only:
-        did_any_seed_action = False
-
-        if args.sync_watch_candidates:
+    if args.command == "watch":
+        if args.watch_command == "sync":
             run_watch_candidate_sync()
-            did_any_seed_action = True
-
-        if args.export_watch_seeds or args.export_npm_seeds:
-            run_watch_seed_export()
-            did_any_seed_action = True
-
-        if not did_any_seed_action:
-            if args.command == "watch" and args.watch_command == "export":
+            if args.export_watch_seeds or args.export_npm_seeds:
+                run_watch_seed_export()
+        elif args.watch_command == "export":
+            if not args.export_watch_seeds and not args.export_npm_seeds:
                 logger.warning(
                     "watch export needs --export-watch-seeds and/or --export-npm-seeds."
                 )
             else:
-                logger.warning(
-                    "--export-seeds-only was set without --sync-watch-candidates or export output paths."
-                )
+                run_watch_seed_export()
 
         logger.info("Repository information generation completed")
         return
@@ -401,12 +340,6 @@ def main():
         repo_index_path, review_queue_path = bases_files.write_base_files()
         logger.info(f"Wrote base file: {repo_index_path}")
         logger.info(f"Wrote base file: {review_queue_path}")
-
-    if args.sync_watch_candidates:
-        run_watch_candidate_sync()
-
-    if args.export_watch_seeds or args.export_npm_seeds:
-        run_watch_seed_export()
 
     logger.info("Repository information generation completed")
 

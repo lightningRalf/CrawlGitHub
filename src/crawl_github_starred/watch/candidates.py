@@ -7,6 +7,9 @@ from typing import Any
 
 from . import io as watch_io
 from . import npm as watch_npm
+from .contracts import WATCH_CANDIDATE_SIGNAL_REASONS_FIELD
+from .contracts import WATCH_CANDIDATE_WHY_FIELD
+from .contracts import WATCH_CANDIDATE_DISCOVERED_AT_FIELD
 from .models import WatchCandidate
 from .models import as_watch_candidate
 from .models import candidate_reason_fragments
@@ -60,11 +63,16 @@ def _build_repo_candidate(
         "title": title,
         "starred": True,
         "tags": sorted({*tags, "source/github-starred"}),
-        "whyWatch": "; ".join(normalized_reasons) if normalized_reasons else "pi-related repository signal",
-        "signalReasons": normalized_reasons,
+        WATCH_CANDIDATE_WHY_FIELD: "; ".join(normalized_reasons)
+        if normalized_reasons
+        else "pi-related repository signal",
+        WATCH_CANDIDATE_SIGNAL_REASONS_FIELD: normalized_reasons,
         "status": "new",
         "owner": "you",
-        "discoveredAt": _normalize_discovered_at(frontmatter, fallback_discovered_at),
+        WATCH_CANDIDATE_DISCOVERED_AT_FIELD: _normalize_discovered_at(
+            frontmatter,
+            fallback_discovered_at,
+        ),
     }
 
     if repo_name:
@@ -95,11 +103,11 @@ def _build_npm_candidate(
         "title": package_name,
         "starred": False,
         "tags": sorted({*base_tags, "source/npm"}),
-        "whyWatch": reason_fragment,
-        "signalReasons": [reason_fragment],
+        WATCH_CANDIDATE_WHY_FIELD: reason_fragment,
+        WATCH_CANDIDATE_SIGNAL_REASONS_FIELD: [reason_fragment],
         "status": "new",
         "owner": "you",
-        "discoveredAt": fallback_discovered_at,
+        WATCH_CANDIDATE_DISCOVERED_AT_FIELD: fallback_discovered_at,
         "package": package_name,
         "fromRepos": [repo_title],
     }
@@ -189,7 +197,7 @@ def _merge_npm_candidate(
     refresh_watch_candidate_signal_metadata(existing_model)
 
 
-def _collect_watch_seed_candidates(max_npm_lookups: int = 0) -> dict[str, Any]:
+def _collect_watch_seed_candidate_models(max_npm_lookups: int = 0) -> dict[str, Any]:
     fallback_discovered_at = watch_io._utc_now_iso()
 
     repo_candidates_by_id: dict[str, WatchCandidate] = {}
@@ -271,19 +279,33 @@ def _collect_watch_seed_candidates(max_npm_lookups: int = 0) -> dict[str, Any]:
 
     npm_lookups_done = watch_npm._enrich_npm_candidates(npm_candidates_models, max(0, max_npm_lookups))
 
-    repo_candidates = [
-        coerce_watch_candidate_dict(candidate)
-        for candidate in repo_candidates_models
-    ]
-    npm_candidates = [
-        coerce_watch_candidate_dict(candidate)
-        for candidate in npm_candidates_models
-    ]
-
     return {
         "scanned_notes": scanned_notes,
         "pi_candidates": pi_candidates,
+        "repo_candidates": repo_candidates_models,
+        "npm_candidates": npm_candidates_models,
+        "npm_lookups": npm_lookups_done,
+    }
+
+
+def _collect_watch_seed_candidates(max_npm_lookups: int = 0) -> dict[str, Any]:
+    collected = _collect_watch_seed_candidate_models(max_npm_lookups=max_npm_lookups)
+
+    repo_candidates = [
+        coerce_watch_candidate_dict(candidate)
+        for candidate in collected.get("repo_candidates", [])
+        if isinstance(candidate, (WatchCandidate, dict))
+    ]
+    npm_candidates = [
+        coerce_watch_candidate_dict(candidate)
+        for candidate in collected.get("npm_candidates", [])
+        if isinstance(candidate, (WatchCandidate, dict))
+    ]
+
+    return {
+        "scanned_notes": int(collected.get("scanned_notes", 0)),
+        "pi_candidates": int(collected.get("pi_candidates", 0)),
         "repo_candidates": repo_candidates,
         "npm_candidates": npm_candidates,
-        "npm_lookups": npm_lookups_done,
+        "npm_lookups": int(collected.get("npm_lookups", 0)),
     }

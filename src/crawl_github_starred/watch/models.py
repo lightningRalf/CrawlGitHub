@@ -3,6 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
+from .contracts import WATCH_CANDIDATE_ALLOWED_CONFIDENCE
+from .contracts import WATCH_CANDIDATE_CONFIDENCE_FIELD
+from .contracts import WATCH_CANDIDATE_KNOWN_FIELDS
+from .contracts import WATCH_CANDIDATE_SIGNAL_COUNT_FIELD
+from .contracts import WATCH_CANDIDATE_SIGNAL_REASONS_FIELD
+from .contracts import WATCH_CANDIDATE_SIGNAL_SOURCES_FIELD
+
 
 def _as_str(value: Any, default: str = "") -> str:
     text = str(value if value is not None else default).strip()
@@ -46,7 +53,7 @@ def _as_str_list(value: Any) -> list[str]:
     return items
 
 
-_ALLOWED_CONFIDENCE = {"low", "medium", "high"}
+_ALLOWED_CONFIDENCE = set(WATCH_CANDIDATE_ALLOWED_CONFIDENCE)
 
 
 @dataclass
@@ -75,36 +82,13 @@ class WatchCandidate:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "WatchCandidate":
-        known_keys = {
-            "id",
-            "type",
-            "source",
-            "title",
-            "starred",
-            "tags",
-            "whyWatch",
-            "signalReasons",
-            "signalSources",
-            "signalCount",
-            "confidence",
-            "status",
-            "owner",
-            "discoveredAt",
-            "repo",
-            "repoUrl",
-            "repoNote",
-            "package",
-            "fromRepos",
-            "fromRepoIds",
-        }
-
-        reasons = _as_str_list(payload.get("signalReasons"))
-        signal_count = _as_int(payload.get("signalCount"), len(reasons))
+        reasons = _as_str_list(payload.get(WATCH_CANDIDATE_SIGNAL_REASONS_FIELD))
+        signal_count = _as_int(payload.get(WATCH_CANDIDATE_SIGNAL_COUNT_FIELD), len(reasons))
 
         extra: dict[str, Any] = {
             key: value
             for key, value in payload.items()
-            if key not in known_keys
+            if key not in WATCH_CANDIDATE_KNOWN_FIELDS
         }
 
         return cls(
@@ -116,9 +100,9 @@ class WatchCandidate:
             tags=_as_str_list(payload.get("tags")),
             why_watch=_as_str(payload.get("whyWatch")),
             signal_reasons=reasons,
-            signal_sources=_as_str_list(payload.get("signalSources")),
+            signal_sources=_as_str_list(payload.get(WATCH_CANDIDATE_SIGNAL_SOURCES_FIELD)),
             signal_count=signal_count,
-            confidence=_as_str(payload.get("confidence")),
+            confidence=_as_str(payload.get(WATCH_CANDIDATE_CONFIDENCE_FIELD)),
             status=_as_str(payload.get("status"), default="new") or "new",
             owner=_as_str(payload.get("owner"), default="you") or "you",
             discovered_at=_as_str(payload.get("discoveredAt")),
@@ -140,10 +124,10 @@ class WatchCandidate:
             "starred": self.starred,
             "tags": list(self.tags),
             "whyWatch": self.why_watch,
-            "signalReasons": list(self.signal_reasons),
-            "signalSources": list(self.signal_sources),
-            "signalCount": int(self.signal_count),
-            "confidence": self.confidence,
+            WATCH_CANDIDATE_SIGNAL_REASONS_FIELD: list(self.signal_reasons),
+            WATCH_CANDIDATE_SIGNAL_SOURCES_FIELD: list(self.signal_sources),
+            WATCH_CANDIDATE_SIGNAL_COUNT_FIELD: int(self.signal_count),
+            WATCH_CANDIDATE_CONFIDENCE_FIELD: self.confidence,
             "status": self.status,
             "owner": self.owner,
             "discoveredAt": self.discovered_at,

@@ -478,3 +478,49 @@ def test_collect_watch_seed_candidates_uses_typed_enrichment_boundary(
     assert all(candidate_type is WatchCandidate for candidate_type in candidate_types)
     assert collected["repo_candidates"][0]["id"] == "github:acme/typed"
     assert collected["npm_candidates"][0]["id"] == "npm:@badlogic/pi"
+
+
+def test_collect_watch_seed_candidates_keeps_dict_boundary_from_model_collection(
+    monkeypatch: Any,
+) -> None:
+    repo_candidate = WatchCandidate.from_dict(
+        {
+            "id": "github:acme/typed-boundary",
+            "type": "repo",
+            "source": "github-starred",
+            "title": "acme/typed-boundary",
+            "tags": ["pi/extension", "source/github-starred"],
+            "whyWatch": "topic:pi-extension",
+        }
+    )
+    npm_candidate = WatchCandidate.from_dict(
+        {
+            "id": "npm:@badlogic/pi-boundary",
+            "type": "npm",
+            "source": "npm",
+            "title": "@badlogic/pi-boundary",
+            "package": "@badlogic/pi-boundary",
+            "tags": ["pi/extension", "source/npm"],
+            "whyWatch": "derived-from:acme/typed-boundary",
+        }
+    )
+
+    monkeypatch.setattr(
+        watch_candidates,
+        "_collect_watch_seed_candidate_models",
+        lambda **_kwargs: {
+            "scanned_notes": 1,
+            "pi_candidates": 1,
+            "repo_candidates": [repo_candidate],
+            "npm_candidates": [npm_candidate],
+            "npm_lookups": 0,
+        },
+    )
+
+    collected = watch_candidates._collect_watch_seed_candidates(max_npm_lookups=3)
+
+    assert collected["repo_candidates"] == [repo_candidate.to_dict()]
+    assert collected["npm_candidates"] == [npm_candidate.to_dict()]
+    assert collected["scanned_notes"] == 1
+    assert collected["pi_candidates"] == 1
+    assert collected["npm_lookups"] == 0

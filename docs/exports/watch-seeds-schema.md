@@ -6,10 +6,11 @@ CrawlGitHub can export pi-extension scouting candidates as JSONL files.
 - npm candidates: `docs/exports/extensions-watch-seeds.npm.jsonl`
 
 It can also sync candidates directly into Obsidian notes/frontmatter with
-`--sync-watch-candidates` and generate `23.03.00_WatchCandidates.base`.
+`crawl-github watch sync` and generate `23.03.00_WatchCandidates.base`.
 
-Optional lifecycle pruning with `--prune-watch-candidates` archives notes that
-are no longer detected (`watch_status: archived`) instead of deleting them.
+Optional lifecycle pruning with `crawl-github watch sync --prune-watch-candidates`
+archives notes that are no longer detected (`watch_status: archived`) instead
+of deleting them.
 
 Each line is one JSON object.
 
@@ -37,7 +38,7 @@ Each line is one JSON object.
 
 ### Sync-only frontmatter lifecycle fields
 
-When using `--sync-watch-candidates` (with or without pruning), notes can include:
+When using `crawl-github watch sync` (with or without pruning), notes can include:
 
 - `watch_updated_at` (last sync touch)
 - `watch_reactivated_at` (set when an archived candidate reappears)

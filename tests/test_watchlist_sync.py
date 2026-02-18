@@ -95,7 +95,7 @@ def test_sync_watch_candidates_to_notes_updates_repo_and_creates_npm_note(
             "npm_lookups": 0,
         }
 
-    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidates", fake_collect)
+    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidate_models", fake_collect)
 
     stats = watch_sync.sync_watch_candidates_to_notes(max_npm_lookups=0)
 
@@ -193,12 +193,83 @@ def test_sync_watch_candidates_accepts_typed_candidate_collection(
             "npm_lookups": 0,
         }
 
-    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidates", fake_collect)
+    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidate_models", fake_collect)
 
     stats = watch_sync.sync_watch_candidates_to_notes(max_npm_lookups=0)
 
     assert stats["repo_notes_updated"] == 1
     assert stats["npm_notes_created"] == 1
+
+
+def test_sync_watch_candidates_uses_typed_collector_only(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    monkeypatch.setattr(watch_sync.config, "WORKING_DIRECTORY", str(tmp_path))
+    monkeypatch.setattr(watch_sync.config, "WATCH_CANDIDATES_SUBDIR", "watch-candidates")
+
+    repo_note_path = tmp_path / "23.03.997_typed-collector.md"
+    repo_note_path.write_text(
+        "---\n"
+        "type: checkbox\n"
+        "source: github-star\n"
+        "repo: acme/typed-collector\n"
+        "repo_url: https://github.com/acme/typed-collector\n"
+        "---\n\n"
+        "# Repo note\n",
+        encoding="utf-8",
+    )
+
+    collect_calls: list[int] = []
+
+    def fake_collect_models(max_npm_lookups: int = 0) -> dict[str, Any]:
+        collect_calls.append(max_npm_lookups)
+        return {
+            "scanned_notes": 1,
+            "pi_candidates": 1,
+            "repo_candidates": [
+                WatchCandidate.from_dict(
+                    {
+                        "id": "github:acme/typed-collector",
+                        "type": "repo",
+                        "source": "github-starred",
+                        "title": "acme/typed-collector",
+                        "repo": "acme/typed-collector",
+                        "repoUrl": "https://github.com/acme/typed-collector",
+                        "repoNote": "23.03.997_typed-collector",
+                        "tags": ["pi/extension", "source/github-starred"],
+                        "whyWatch": "topic:pi-extension",
+                        "discoveredAt": "2026-02-16T00:00:00Z",
+                        "owner": "you",
+                    }
+                )
+            ],
+            "npm_candidates": [],
+            "npm_lookups": 0,
+        }
+
+    def fail_collect_dict(**_kwargs: Any) -> dict[str, Any]:
+        raise AssertionError("Legacy dict collector should not be used by sync path.")
+
+    monkeypatch.setattr(
+        watch_candidates,
+        "_collect_watch_seed_candidate_models",
+        fake_collect_models,
+    )
+    monkeypatch.setattr(
+        watch_candidates,
+        "_collect_watch_seed_candidates",
+        fail_collect_dict,
+    )
+
+    stats = watch_sync.sync_watch_candidates_to_notes(max_npm_lookups=2)
+
+    assert collect_calls == [2]
+    assert stats["repo_notes_updated"] == 1
+    assert stats["repo_candidates"] == 1
+
+    repo_text = repo_note_path.read_text(encoding="utf-8")
+    assert "watch_seed_id: github:acme/typed-collector" in repo_text
 
 
 def test_sync_watch_candidates_reactivates_archived_notes(
@@ -274,7 +345,7 @@ def test_sync_watch_candidates_reactivates_archived_notes(
             "npm_lookups": 0,
         }
 
-    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidates", fake_collect)
+    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidate_models", fake_collect)
 
     stats = watch_sync.sync_watch_candidates_to_notes(max_npm_lookups=0)
 
@@ -362,7 +433,7 @@ def test_sync_watch_candidates_prunes_missing_candidates(
             "npm_lookups": 0,
         }
 
-    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidates", fake_collect)
+    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidate_models", fake_collect)
 
     stats = watch_sync.sync_watch_candidates_to_notes(
         max_npm_lookups=0,

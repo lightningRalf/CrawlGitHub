@@ -371,7 +371,9 @@ def sync_watch_candidates_to_notes(
     - npm candidates are synced into dedicated notes under ``WATCH_CANDIDATES_SUBDIR``.
     - Optional pruning archives stale watch candidates (`watch_status: archived`).
     """
-    collected = watch_candidates._collect_watch_seed_candidates(max_npm_lookups=max_npm_lookups)
+    collected = watch_candidates._collect_watch_seed_candidate_models(
+        max_npm_lookups=max_npm_lookups
+    )
 
     repo_candidates: list[WatchCandidate] = []
     for candidate in collected.get("repo_candidates", []):

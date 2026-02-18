@@ -118,7 +118,7 @@ def test_sync_writes_signal_and_lifecycle_contract_fields(
             "npm_lookups": 0,
         }
 
-    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidates", fake_collect)
+    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidate_models", fake_collect)
 
     watch_sync.sync_watch_candidates_to_notes(max_npm_lookups=0)
 
@@ -160,7 +160,7 @@ def test_sync_archive_and_reactivation_write_lifecycle_contract_fields(
 
     monkeypatch.setattr(
         watch_candidates,
-        "_collect_watch_seed_candidates",
+        "_collect_watch_seed_candidate_models",
         lambda **_kwargs: {
             "scanned_notes": 1,
             "pi_candidates": 0,
@@ -198,7 +198,7 @@ def test_sync_archive_and_reactivation_write_lifecycle_contract_fields(
             "npm_lookups": 0,
         }
 
-    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidates", fake_reactivate)
+    monkeypatch.setattr(watch_candidates, "_collect_watch_seed_candidate_models", fake_reactivate)
 
     watch_sync.sync_watch_candidates_to_notes(max_npm_lookups=0)
 

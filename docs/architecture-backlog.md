@@ -84,7 +84,7 @@
 - **Dependencies:** T3
 - **Leaf actions:**
   1. Add argparse subparsers in `src/crawl_github_starred/main.py`.
-  2. Preserve old flags as compatibility path.
+  2. Require explicit subcommands (no flag-only compatibility path).
   3. Update README command examples.
 - **Validation:**
   - `uv run python -m pytest -q`
@@ -123,13 +123,12 @@
   - wired typed coercion into npm metadata enrichment mutation paths
   - sync now accepts typed `WatchCandidate` collections from boundaries
   - added parity-focused tests in `tests/test_watch_models.py` and typed sync/merge/enrichment/collection-path checks in `tests/test_watchlist_sync.py` + `tests/test_watchlist_heuristics.py` + `tests/test_watchlist_contracts.py`
-- 🚧 T6 incremental CLI shape progressed:
-  - introduced explicit argparse subparsers: `crawl`, `watch sync`, `watch export`
-  - preserved legacy flag-only invocation by defaulting to `crawl` when no command is provided
-  - added CLI compatibility tests in `tests/test_main_cli_subcommands.py`
+- ✅ T6 explicit CLI subcommands finalized:
+  - explicit argparse subparsers: `crawl`, `watch sync`, `watch export`
+  - removed legacy flag-only invocation/default-to-crawl behavior
+  - updated CLI tests/docs to enforce explicit command usage
 
 ## Current next actions
 
 1. Continue T5 by migrating remaining dict-heavy helper callsites in watch pipelines to typed helper usage while preserving JSONL/frontmatter parity.
-2. Continue T6 by refining subparser UX/help and keeping backward-compatible flag behavior stable.
-3. Keep schema/contract drift checks green (`signal*`, `watch_signal_*`, lifecycle timestamps).
+2. Keep schema/contract drift checks green (`signal*`, `watch_signal_*`, lifecycle timestamps).

@@ -19,7 +19,7 @@ Fetches starred repositories for a configured GitHub user (defaults to `lightnin
 - Watchlist seed exports for pi extension scouting:
   - GitHub candidates JSONL
   - npm candidates JSONL (optional bounded npm enrichment)
-- Watch candidate lifecycle sync can archive stale candidates (`watch_status: archived`) with `--prune-watch-candidates` and tracks reactivation/archive timestamps
+- Watch candidate lifecycle sync can archive stale candidates (`watch_status: archived`) with `crawl-github watch sync --prune-watch-candidates` and tracks reactivation/archive timestamps
 - Watch heuristics use boundary-aware marker matching, frontmatter-weighted phrase signals, and conservative repo anchors to reduce false positives
 - Synced watch notes include explainability fields (`watch_signal_sources`, `watch_signal_count`, `watch_confidence`) for clearer Bases triage
 - Optional watch telemetry JSON artifact can be emitted each watch sync/export run
@@ -67,16 +67,18 @@ Optional environment variables:
 Run crawler:
 
 ```sh
-uv run crawl-github
+uv run crawl-github crawl
 ```
 
 PowerShell wrapper:
 
 ```powershell
-.\run_crawl_github.ps1
+.\run_crawl_github.ps1 crawl
 ```
 
-### CLI flags
+### Command reference
+
+#### `crawl` (GitHub API workflow)
 
 - `--skip-existing`
 - `--resume-from 1450`
@@ -86,45 +88,50 @@ PowerShell wrapper:
 - `--readme-stale-jitter-days 7`
 - `--max-readme-updates 20`
 - `--skip-bases`
-- `--sync-watch-candidates`
+
+#### `watch sync` (local-only watch note sync)
+
 - `--prune-watch-candidates`
+- `--skip-bases`
 - `--export-watch-seeds docs/exports/extensions-watch-seeds.github.jsonl`
 - `--export-npm-seeds docs/exports/extensions-watch-seeds.npm.jsonl`
 - `--max-npm-lookups 10`
-- `--export-seeds-only`
 
-### Subcommands (incremental CLI shape)
+#### `watch export` (local-only watch seed export)
 
-- `uv run crawl-github crawl ...` → explicit full crawl mode
-- `uv run crawl-github watch sync ...` → local-only watch sync (`--export-seeds-only` + `--sync-watch-candidates`)
-- `uv run crawl-github watch export ...` → local-only watch export (`--export-seeds-only` + export paths)
-- Backward compatibility: `uv run crawl-github --flags ...` still works and defaults to `crawl`.
+- `--export-watch-seeds docs/exports/extensions-watch-seeds.github.jsonl`
+- `--export-npm-seeds docs/exports/extensions-watch-seeds.npm.jsonl`
+- `--max-npm-lookups 10`
 
-Example (safe incremental run):
+> Legacy flag-only forms were removed. Use explicit subcommands.
+
+Example (safe incremental crawl run):
 
 ```sh
-uv run crawl-github --skip-existing --max-repos 50 --readme-sync-mode if-pushed --readme-stale-days 30 --readme-stale-jitter-days 7 --max-readme-updates 10
+uv run crawl-github crawl --skip-existing --max-repos 50 --readme-sync-mode if-pushed --readme-stale-days 30 --readme-stale-jitter-days 7 --max-readme-updates 10
 ```
 
 Example (sync watch candidates directly into Obsidian notes + WatchCandidates base, local-only):
 
 ```sh
-uv run crawl-github --export-seeds-only --sync-watch-candidates --max-npm-lookups 0
-# equivalent alias form:
 uv run crawl-github watch sync --max-npm-lookups 0
 ```
 
 Example (sync + archive candidates no longer detected):
 
 ```sh
-uv run crawl-github --export-seeds-only --sync-watch-candidates --prune-watch-candidates --max-npm-lookups 0
+uv run crawl-github watch sync --prune-watch-candidates --max-npm-lookups 0
+```
+
+Example (sync + export watch seeds in one local-only run):
+
+```sh
+uv run crawl-github watch sync --export-watch-seeds docs/exports/extensions-watch-seeds.github.jsonl --export-npm-seeds docs/exports/extensions-watch-seeds.npm.jsonl --max-npm-lookups 0
 ```
 
 Example (export watchlist seeds from local notes, no npm API enrichment):
 
 ```sh
-uv run crawl-github --export-seeds-only --export-watch-seeds docs/exports/extensions-watch-seeds.github.jsonl --export-npm-seeds docs/exports/extensions-watch-seeds.npm.jsonl --max-npm-lookups 0
-# equivalent alias form:
 uv run crawl-github watch export --export-watch-seeds docs/exports/extensions-watch-seeds.github.jsonl --export-npm-seeds docs/exports/extensions-watch-seeds.npm.jsonl --max-npm-lookups 0
 ```
 

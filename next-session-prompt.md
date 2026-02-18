@@ -8,8 +8,8 @@ Continue improving `C:\Users\mjpa\ProgrammierProjekte\CrawlGitHub` for Obsidian-
 - Repo notes use structured frontmatter (`schema_version: 2`) and preserve manual triage fields.
 - Bases are generated for repo index/review queue/watch candidates.
 - Watch candidate workflow is Obsidian-first:
-  - `--sync-watch-candidates`
-  - lifecycle archiving via `--prune-watch-candidates` (`watch_status: archived`)
+  - `crawl-github watch sync`
+  - lifecycle archiving via `crawl-github watch sync --prune-watch-candidates` (`watch_status: archived`)
   - reactivation handling and lifecycle timestamps.
 - Watch heuristics improved:
   - boundary-aware matching,
@@ -36,11 +36,11 @@ Continue improving `C:\Users\mjpa\ProgrammierProjekte\CrawlGitHub` for Obsidian-
   - merge and stats callsites in sync/export flows now operate typed-first
   - JSONL/frontmatter parity preserved at boundaries via `to_dict` coercion
   - parity-focused tests extended in `tests/test_watch_models.py`, `tests/test_watchlist_heuristics.py`, `tests/test_watchlist_sync.py`, and `tests/test_watchlist_contracts.py`.
-- Incremental CLI subcommand shape introduced (compatibility-safe):
+- Explicit CLI subcommand shape enforced:
   - explicit subparsers: `crawl`, `watch sync`, `watch export`
-  - legacy flag-only invocation remains supported by defaulting to `crawl`.
+  - legacy flag-only invocation removed.
 - Optional watch telemetry JSON artifact is available via `CRAWLGITHUB_WATCH_TELEMETRY_FILE`.
-- Current test gate: `71 passed`.
+- Current test gate: `76 passed`.
 
 ## Current priorities (architecture)
 
@@ -52,9 +52,9 @@ Continue improving `C:\Users\mjpa\ProgrammierProjekte\CrawlGitHub` for Obsidian-
    - Keep `watch/contracts.py` as the only schema source for candidate/frontmatter keys.
    - Expand drift checks when new watch fields are introduced.
 
-3. **CLI subcommand shape (incremental)**
+3. **CLI subcommand shape (explicit-only)**
    - Refine subparser UX/help and keep command behavior explicit.
-   - Preserve legacy flags and behavior compatibility.
+   - Keep docs/scripts aligned to subcommand usage only.
 
 4. **Post-split module API clarity**
    - Keep boundaries explicit across `watch/io.py`, `watch/npm.py`, `watch/candidates.py`, `watch/export.py`, and `watch/sync.py`.
@@ -65,7 +65,7 @@ Continue improving `C:\Users\mjpa\ProgrammierProjekte\CrawlGitHub` for Obsidian-
 - Do **not** hammer GitHub API.
 - Keep README sync conservative and bounded (`--max-readme-updates`).
 - Prefer local-first workflows:
-  - `--export-seeds-only`
+  - `crawl-github watch sync` / `crawl-github watch export`
   - `--max-npm-lookups 0` unless explicitly needed.
 
 ## First checks
@@ -77,11 +77,11 @@ Continue improving `C:\Users\mjpa\ProgrammierProjekte\CrawlGitHub` for Obsidian-
 ## Suggested next commands
 
 ```sh
-# Local-only watch sync + prune (subcommand form)
+# Local-only watch sync + prune
 uv run crawl-github watch sync --prune-watch-candidates --max-npm-lookups 0
 
-# Backward-compatible legacy form
-uv run crawl-github --export-seeds-only --sync-watch-candidates --prune-watch-candidates --max-npm-lookups 0
+# Local-only watch export
+uv run crawl-github watch export --export-watch-seeds docs/exports/extensions-watch-seeds.github.jsonl --export-npm-seeds docs/exports/extensions-watch-seeds.npm.jsonl --max-npm-lookups 0
 
 # Full test gate
 uv run python -m pytest -q
@@ -94,4 +94,4 @@ uv run python -m pytest -q
 - At least one architecture objective completed:
   - typed model migration further expanded by converting at least one remaining watch pipeline callsite to typed helper usage + parity tests, OR
   - additional contract drift coverage added for any newly introduced watch field, OR
-  - subparser UX/help refinements completed with legacy-flag compatibility preserved.
+  - subparser UX/help refinements completed with explicit-subcommand docs/scripts alignment.

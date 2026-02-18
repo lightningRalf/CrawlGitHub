@@ -181,6 +181,7 @@ src/
     watch/
       __init__.py
       candidates.py
+      contracts.py
       export.py
       io.py
       models.py

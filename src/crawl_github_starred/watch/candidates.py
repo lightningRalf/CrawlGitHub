@@ -7,6 +7,9 @@ from typing import Any
 
 from . import io as watch_io
 from . import npm as watch_npm
+from .contracts import WATCH_CANDIDATE_SIGNAL_REASONS_FIELD
+from .contracts import WATCH_CANDIDATE_WHY_FIELD
+from .contracts import WATCH_CANDIDATE_DISCOVERED_AT_FIELD
 from .models import WatchCandidate
 from .models import as_watch_candidate
 from .models import candidate_reason_fragments
@@ -60,11 +63,16 @@ def _build_repo_candidate(
         "title": title,
         "starred": True,
         "tags": sorted({*tags, "source/github-starred"}),
-        "whyWatch": "; ".join(normalized_reasons) if normalized_reasons else "pi-related repository signal",
-        "signalReasons": normalized_reasons,
+        WATCH_CANDIDATE_WHY_FIELD: "; ".join(normalized_reasons)
+        if normalized_reasons
+        else "pi-related repository signal",
+        WATCH_CANDIDATE_SIGNAL_REASONS_FIELD: normalized_reasons,
         "status": "new",
         "owner": "you",
-        "discoveredAt": _normalize_discovered_at(frontmatter, fallback_discovered_at),
+        WATCH_CANDIDATE_DISCOVERED_AT_FIELD: _normalize_discovered_at(
+            frontmatter,
+            fallback_discovered_at,
+        ),
     }
 
     if repo_name:
@@ -95,11 +103,11 @@ def _build_npm_candidate(
         "title": package_name,
         "starred": False,
         "tags": sorted({*base_tags, "source/npm"}),
-        "whyWatch": reason_fragment,
-        "signalReasons": [reason_fragment],
+        WATCH_CANDIDATE_WHY_FIELD: reason_fragment,
+        WATCH_CANDIDATE_SIGNAL_REASONS_FIELD: [reason_fragment],
         "status": "new",
         "owner": "you",
-        "discoveredAt": fallback_discovered_at,
+        WATCH_CANDIDATE_DISCOVERED_AT_FIELD: fallback_discovered_at,
         "package": package_name,
         "fromRepos": [repo_title],
     }

@@ -3,6 +3,13 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from .contracts import WATCH_CANDIDATE_ALLOWED_CONFIDENCE
+from .contracts import WATCH_CANDIDATE_CONFIDENCE_FIELD
+from .contracts import WATCH_CANDIDATE_SIGNAL_COUNT_FIELD
+from .contracts import WATCH_CANDIDATE_SIGNAL_REASONS_FIELD
+from .contracts import WATCH_CANDIDATE_SIGNAL_SOURCES_FIELD
+from .contracts import WATCH_CANDIDATE_WHY_FIELD
+
 PI_MARKER_TO_TAG = {
     "pi-package": "pi/extension",
     "pi-extension": "pi/extension",
@@ -167,14 +174,14 @@ def _watch_confidence(tags: list[str], reasons: list[str]) -> str:
 
 
 def _candidate_reason_fragments(candidate: dict[str, Any]) -> list[str]:
-    reasons = _normalize_reason_fragments(candidate.get("signalReasons"))
+    reasons = _normalize_reason_fragments(candidate.get(WATCH_CANDIDATE_SIGNAL_REASONS_FIELD))
     if reasons:
         return reasons
-    return _normalize_reason_fragments(candidate.get("whyWatch"))
+    return _normalize_reason_fragments(candidate.get(WATCH_CANDIDATE_WHY_FIELD))
 
 
 def _candidate_signal_sources(candidate: dict[str, Any], reasons: list[str]) -> list[str]:
-    provided = candidate.get("signalSources")
+    provided = candidate.get(WATCH_CANDIDATE_SIGNAL_SOURCES_FIELD)
     provided_sources: list[str] = []
 
     if isinstance(provided, list):
@@ -206,22 +213,22 @@ def _candidate_signal_sources(candidate: dict[str, Any], reasons: list[str]) -> 
 def _populate_signal_metadata(candidate: dict[str, Any]) -> None:
     reasons = _candidate_reason_fragments(candidate)
     if not reasons:
-        fallback = str(candidate.get("whyWatch") or "").strip()
+        fallback = str(candidate.get(WATCH_CANDIDATE_WHY_FIELD) or "").strip()
         if fallback:
             reasons = [fallback]
 
     tags = [str(tag).strip() for tag in candidate.get("tags", []) if str(tag).strip()]
     sources = _candidate_signal_sources(candidate, reasons)
 
-    provided_confidence = str(candidate.get("confidence") or "").strip().lower()
-    if provided_confidence not in {"low", "medium", "high"}:
+    provided_confidence = str(candidate.get(WATCH_CANDIDATE_CONFIDENCE_FIELD) or "").strip().lower()
+    if provided_confidence not in WATCH_CANDIDATE_ALLOWED_CONFIDENCE:
         provided_confidence = ""
 
-    candidate["signalReasons"] = reasons
-    candidate["signalSources"] = sources
-    candidate["signalCount"] = len(reasons)
-    candidate["confidence"] = provided_confidence or _watch_confidence(tags, reasons)
-    candidate["whyWatch"] = "; ".join(reasons) if reasons else ""
+    candidate[WATCH_CANDIDATE_SIGNAL_REASONS_FIELD] = reasons
+    candidate[WATCH_CANDIDATE_SIGNAL_SOURCES_FIELD] = sources
+    candidate[WATCH_CANDIDATE_SIGNAL_COUNT_FIELD] = len(reasons)
+    candidate[WATCH_CANDIDATE_CONFIDENCE_FIELD] = provided_confidence or _watch_confidence(tags, reasons)
+    candidate[WATCH_CANDIDATE_WHY_FIELD] = "; ".join(reasons) if reasons else ""
 
 
 def _confidence_counts(candidates: list[dict[str, Any]]) -> dict[str, int]:
@@ -231,7 +238,7 @@ def _confidence_counts(candidates: list[dict[str, Any]]) -> dict[str, int]:
         reasons = _candidate_reason_fragments(candidate)
         tags = [str(tag).strip() for tag in candidate.get("tags", []) if str(tag).strip()]
 
-        confidence = str(candidate.get("confidence") or "").strip().lower()
+        confidence = str(candidate.get(WATCH_CANDIDATE_CONFIDENCE_FIELD) or "").strip().lower()
         if confidence not in counts:
             confidence = _watch_confidence(tags, reasons)
 

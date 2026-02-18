@@ -4,11 +4,27 @@ import hashlib
 import logging
 import os
 import re
-from typing import Any
+from typing import Any, Sequence
 
 from .. import config
 from . import candidates as watch_candidates
 from . import io as watch_io
+from .contracts import WATCH_CANDIDATE_ALLOWED_CONFIDENCE
+from .contracts import WATCH_FRONTMATTER_ARCHIVED_AT_FIELD
+from .contracts import WATCH_FRONTMATTER_CANDIDATE_FIELD
+from .contracts import WATCH_FRONTMATTER_CONFIDENCE_FIELD
+from .contracts import WATCH_FRONTMATTER_DISCOVERED_AT_FIELD
+from .contracts import WATCH_FRONTMATTER_OWNER_FIELD
+from .contracts import WATCH_FRONTMATTER_REACTIVATED_AT_FIELD
+from .contracts import WATCH_FRONTMATTER_SEED_ID_FIELD
+from .contracts import WATCH_FRONTMATTER_SIGNAL_COUNT_FIELD
+from .contracts import WATCH_FRONTMATTER_SIGNAL_SOURCES_FIELD
+from .contracts import WATCH_FRONTMATTER_STATUS_FIELD
+from .contracts import WATCH_FRONTMATTER_TAGS_FIELD
+from .contracts import WATCH_FRONTMATTER_TYPE_FIELD
+from .contracts import WATCH_FRONTMATTER_UPDATED_AT_FIELD
+from .contracts import WATCH_FRONTMATTER_WHY_FIELD
+from .contracts import WATCH_NOTE_FRONTMATTER_ORDER
 from .models import WatchCandidate
 from .models import as_watch_candidate
 from .models import candidate_reason_fragments
@@ -17,32 +33,6 @@ from .models import watch_candidate_confidence_counts
 from .models import watch_candidate_signal_source_counts
 
 logger = logging.getLogger(__name__)
-
-WATCH_NOTE_FRONTMATTER_ORDER = [
-    "type",
-    "source",
-    "watch_candidate",
-    "watch_type",
-    "watch_seed_id",
-    "watch_status",
-    "watch_owner",
-    "watch_tags",
-    "watch_signal_sources",
-    "watch_signal_count",
-    "watch_confidence",
-    "watch_why",
-    "watch_discovered_at",
-    "watch_updated_at",
-    "watch_reactivated_at",
-    "watch_archived_at",
-    "title",
-    "repo",
-    "repo_url",
-    "package",
-    "from_repos",
-    "from_repo_ids",
-]
-
 
 def _sanitize_filename(value: str) -> str:
     sanitized = re.sub(r"[^A-Za-z0-9_.-]", "-", str(value or "").strip())
@@ -124,33 +114,35 @@ def _upsert_repo_candidate_note(
     reason_text = candidate_model.why_watch or "; ".join(signal_reasons)
 
     confidence = candidate_model.confidence.strip().lower()
-    if confidence not in {"low", "medium", "high"}:
+    if confidence not in WATCH_CANDIDATE_ALLOWED_CONFIDENCE:
         confidence = "low"
 
     signal_count = _as_int(candidate_model.signal_count, len(signal_reasons))
 
-    updated["watch_candidate"] = "true"
-    updated["watch_type"] = "repo"
-    updated["watch_seed_id"] = candidate_model.id
-    updated["watch_tags"] = _as_joined_csv(candidate_model.tags)
-    updated["watch_signal_sources"] = _as_joined_csv(signal_sources)
-    updated["watch_signal_count"] = signal_count
-    updated["watch_confidence"] = confidence
-    updated["watch_why"] = reason_text
-    updated["watch_discovered_at"] = candidate_model.discovered_at or now_iso
-    updated["watch_updated_at"] = now_iso
+    updated[WATCH_FRONTMATTER_CANDIDATE_FIELD] = "true"
+    updated[WATCH_FRONTMATTER_TYPE_FIELD] = "repo"
+    updated[WATCH_FRONTMATTER_SEED_ID_FIELD] = candidate_model.id
+    updated[WATCH_FRONTMATTER_TAGS_FIELD] = _as_joined_csv(candidate_model.tags)
+    updated[WATCH_FRONTMATTER_SIGNAL_SOURCES_FIELD] = _as_joined_csv(signal_sources)
+    updated[WATCH_FRONTMATTER_SIGNAL_COUNT_FIELD] = signal_count
+    updated[WATCH_FRONTMATTER_CONFIDENCE_FIELD] = confidence
+    updated[WATCH_FRONTMATTER_WHY_FIELD] = reason_text
+    updated[WATCH_FRONTMATTER_DISCOVERED_AT_FIELD] = candidate_model.discovered_at or now_iso
+    updated[WATCH_FRONTMATTER_UPDATED_AT_FIELD] = now_iso
 
-    was_archived = str(frontmatter.get("watch_status") or "").strip().lower() == "archived"
+    was_archived = (
+        str(frontmatter.get(WATCH_FRONTMATTER_STATUS_FIELD) or "").strip().lower() == "archived"
+    )
     if was_archived:
-        updated["watch_status"] = "new"
-        updated["watch_reactivated_at"] = now_iso
-        if "watch_archived_at" in updated:
-            updated["watch_archived_at"] = ""
-    elif not str(updated.get("watch_status") or "").strip():
-        updated["watch_status"] = "new"
+        updated[WATCH_FRONTMATTER_STATUS_FIELD] = "new"
+        updated[WATCH_FRONTMATTER_REACTIVATED_AT_FIELD] = now_iso
+        if WATCH_FRONTMATTER_ARCHIVED_AT_FIELD in updated:
+            updated[WATCH_FRONTMATTER_ARCHIVED_AT_FIELD] = ""
+    elif not str(updated.get(WATCH_FRONTMATTER_STATUS_FIELD) or "").strip():
+        updated[WATCH_FRONTMATTER_STATUS_FIELD] = "new"
 
-    if not str(updated.get("watch_owner") or "").strip():
-        updated["watch_owner"] = candidate_model.owner or "you"
+    if not str(updated.get(WATCH_FRONTMATTER_OWNER_FIELD) or "").strip():
+        updated[WATCH_FRONTMATTER_OWNER_FIELD] = candidate_model.owner or "you"
 
     rewritten = watch_io._render_frontmatter(updated) + body.lstrip("\n")
     changed = watch_io._write_text_if_changed(note_path, rewritten)
@@ -216,23 +208,23 @@ def _upsert_npm_candidate_note(
     reason_text = candidate_model.why_watch or "; ".join(signal_reasons)
 
     confidence = candidate_model.confidence.strip().lower()
-    if confidence not in {"low", "medium", "high"}:
+    if confidence not in WATCH_CANDIDATE_ALLOWED_CONFIDENCE:
         confidence = "low"
 
     signal_count = _as_int(candidate_model.signal_count, len(signal_reasons))
 
     updated["type"] = "watch_candidate"
     updated["source"] = "watch-seed"
-    updated["watch_candidate"] = "true"
-    updated["watch_type"] = "npm"
-    updated["watch_seed_id"] = candidate_model.id
-    updated["watch_tags"] = _as_joined_csv(candidate_model.tags)
-    updated["watch_signal_sources"] = _as_joined_csv(signal_sources)
-    updated["watch_signal_count"] = signal_count
-    updated["watch_confidence"] = confidence
-    updated["watch_why"] = reason_text
-    updated["watch_discovered_at"] = candidate_model.discovered_at or now_iso
-    updated["watch_updated_at"] = now_iso
+    updated[WATCH_FRONTMATTER_CANDIDATE_FIELD] = "true"
+    updated[WATCH_FRONTMATTER_TYPE_FIELD] = "npm"
+    updated[WATCH_FRONTMATTER_SEED_ID_FIELD] = candidate_model.id
+    updated[WATCH_FRONTMATTER_TAGS_FIELD] = _as_joined_csv(candidate_model.tags)
+    updated[WATCH_FRONTMATTER_SIGNAL_SOURCES_FIELD] = _as_joined_csv(signal_sources)
+    updated[WATCH_FRONTMATTER_SIGNAL_COUNT_FIELD] = signal_count
+    updated[WATCH_FRONTMATTER_CONFIDENCE_FIELD] = confidence
+    updated[WATCH_FRONTMATTER_WHY_FIELD] = reason_text
+    updated[WATCH_FRONTMATTER_DISCOVERED_AT_FIELD] = candidate_model.discovered_at or now_iso
+    updated[WATCH_FRONTMATTER_UPDATED_AT_FIELD] = now_iso
     updated["title"] = title
     updated["package"] = package_name
 
@@ -248,17 +240,19 @@ def _upsert_npm_candidate_note(
     if from_repo_ids_csv:
         updated["from_repo_ids"] = from_repo_ids_csv
 
-    was_archived = str(frontmatter.get("watch_status") or "").strip().lower() == "archived"
+    was_archived = (
+        str(frontmatter.get(WATCH_FRONTMATTER_STATUS_FIELD) or "").strip().lower() == "archived"
+    )
     if was_archived:
-        updated["watch_status"] = "new"
-        updated["watch_reactivated_at"] = now_iso
-        if "watch_archived_at" in updated:
-            updated["watch_archived_at"] = ""
-    elif not str(updated.get("watch_status") or "").strip():
-        updated["watch_status"] = "new"
+        updated[WATCH_FRONTMATTER_STATUS_FIELD] = "new"
+        updated[WATCH_FRONTMATTER_REACTIVATED_AT_FIELD] = now_iso
+        if WATCH_FRONTMATTER_ARCHIVED_AT_FIELD in updated:
+            updated[WATCH_FRONTMATTER_ARCHIVED_AT_FIELD] = ""
+    elif not str(updated.get(WATCH_FRONTMATTER_STATUS_FIELD) or "").strip():
+        updated[WATCH_FRONTMATTER_STATUS_FIELD] = "new"
 
-    if not str(updated.get("watch_owner") or "").strip():
-        updated["watch_owner"] = candidate_model.owner or "you"
+    if not str(updated.get(WATCH_FRONTMATTER_OWNER_FIELD) or "").strip():
+        updated[WATCH_FRONTMATTER_OWNER_FIELD] = candidate_model.owner or "you"
 
     note_stem = os.path.splitext(os.path.basename(relative_path))[0]
     effective_body = body if body.strip() else _default_npm_candidate_body(candidate_model, note_stem)
@@ -277,15 +271,15 @@ def _archive_watch_candidate_note(
     frontmatter: dict[str, str],
     body: str,
     now_iso: str,
-    key_order: list[str] | None = None,
+    key_order: Sequence[str] | None = None,
 ) -> bool:
-    if str(frontmatter.get("watch_status") or "").strip().lower() == "archived":
+    if str(frontmatter.get(WATCH_FRONTMATTER_STATUS_FIELD) or "").strip().lower() == "archived":
         return False
 
     updated = dict(frontmatter)
-    updated["watch_status"] = "archived"
-    updated["watch_updated_at"] = now_iso
-    updated["watch_archived_at"] = now_iso
+    updated[WATCH_FRONTMATTER_STATUS_FIELD] = "archived"
+    updated[WATCH_FRONTMATTER_UPDATED_AT_FIELD] = now_iso
+    updated[WATCH_FRONTMATTER_ARCHIVED_AT_FIELD] = now_iso
 
     rewritten = watch_io._render_frontmatter(updated, key_order=key_order) + body.lstrip("\n")
     return watch_io._write_text_if_changed(note_path, rewritten)
@@ -304,14 +298,16 @@ def _archive_missing_watch_candidates(active_seed_ids: set[str], now_iso: str) -
 
         frontmatter, body = watch_io._parse_frontmatter(content)
 
-        if not watch_io._is_truthy(frontmatter.get("watch_candidate")):
+        if not watch_io._is_truthy(frontmatter.get(WATCH_FRONTMATTER_CANDIDATE_FIELD)):
             continue
 
-        watch_seed_id = watch_io._normalize_watch_seed_id(frontmatter.get("watch_seed_id"))
+        watch_seed_id = watch_io._normalize_watch_seed_id(
+            frontmatter.get(WATCH_FRONTMATTER_SEED_ID_FIELD)
+        )
         if not watch_seed_id:
             continue
 
-        watch_type = str(frontmatter.get("watch_type") or "").strip().lower()
+        watch_type = str(frontmatter.get(WATCH_FRONTMATTER_TYPE_FIELD) or "").strip().lower()
         if watch_type and watch_type != "repo":
             continue
         if not watch_type and not watch_seed_id.startswith("github:"):
@@ -332,14 +328,16 @@ def _archive_missing_watch_candidates(active_seed_ids: set[str], now_iso: str) -
 
         frontmatter, body = watch_io._parse_frontmatter(content)
 
-        if not watch_io._is_truthy(frontmatter.get("watch_candidate")):
+        if not watch_io._is_truthy(frontmatter.get(WATCH_FRONTMATTER_CANDIDATE_FIELD)):
             continue
 
-        watch_seed_id = watch_io._normalize_watch_seed_id(frontmatter.get("watch_seed_id"))
+        watch_seed_id = watch_io._normalize_watch_seed_id(
+            frontmatter.get(WATCH_FRONTMATTER_SEED_ID_FIELD)
+        )
         if not watch_seed_id:
             continue
 
-        watch_type = str(frontmatter.get("watch_type") or "").strip().lower()
+        watch_type = str(frontmatter.get(WATCH_FRONTMATTER_TYPE_FIELD) or "").strip().lower()
         if watch_type and watch_type != "npm":
             continue
         if not watch_type and not watch_seed_id.startswith("npm:"):
